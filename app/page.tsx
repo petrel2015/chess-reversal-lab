@@ -691,9 +691,9 @@ export default function Home() {
               title="仅改变棋盘观看方向，不会重置棋局"
             >
               <span className="flip-side-icon" aria-hidden="true">
-                <i className="flip-color white" />
+                <PieceArt piece={{ color: "w", type: "p" }} className="flip-side-piece" />
                 <b>⇅</b>
-                <i className="flip-color black" />
+                <PieceArt piece={{ color: "b", type: "p" }} className="flip-side-piece" />
               </span>
               <span>翻转视角</span>
             </button>

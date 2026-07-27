@@ -62,6 +62,8 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /兵不能后退/);
   assert.match(page, /翻转棋盘视角，仅改变显示方向/);
   assert.match(page, /翻转视角/);
+  assert.match(page, /className="flip-side-piece"/);
+  assert.doesNotMatch(page, /className="flip-color/);
   assert.doesNotMatch(page, /className="icon-button"/);
   assert.match(page, /const loadStandardPosition =/);
   assert.match(page, /setBoard\(chessToBoard\(new Chess\(\)\)\)/);

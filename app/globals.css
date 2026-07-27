@@ -403,35 +403,26 @@ button {
 }
 
 .flip-side-icon {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  grid-template-columns: 8px 1fr 8px;
-  place-items: center;
-  border-radius: 7px;
-  background: #292c26;
-  border: 1px solid #3a3e36;
+  width: 58px;
+  height: 30px;
+  flex: 0 0 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
 }
 
 .flip-side-icon b {
   color: var(--acid);
-  font: 800 14px/1 var(--font-space), sans-serif;
+  font: 800 13px/1 var(--font-space), sans-serif;
 }
 
-.flip-color {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-}
-
-.flip-color.white {
-  background: #f2f1e7;
-  box-shadow: 0 0 0 1px #a9aa9e;
-}
-
-.flip-color.black {
-  background: #11130f;
-  box-shadow: 0 0 0 1px #65695e;
+.flip-side-piece {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  object-fit: contain;
 }
 
 .board-wrap {
