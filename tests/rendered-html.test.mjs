@@ -23,7 +23,10 @@ test("renders the position lab shell", async () => {
   assert.match(html, /<title>逆转棋局｜自定义残局推演<\/title>/);
   assert.match(html, /摆下残局/);
   assert.match(html, /Stockfish 17\.1/);
-  assert.match(html, /双方必须各有且只有一个王/);
+  assert.match(html, /已加载标准开局，可直接开始或继续调整/);
+  assert.match(html, /基础合法性检查已通过/);
+  assert.match(html, /aria-label="a8 黑车"/);
+  assert.match(html, /aria-label="e1 白王"/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/);
 });
 
@@ -66,6 +69,8 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.doesNotMatch(page, /className="flip-color/);
   assert.doesNotMatch(page, /className="icon-button"/);
   assert.match(page, /const loadStandardPosition =/);
+  assert.match(page, /useState<BoardMap>\(\(\) => chessToBoard\(new Chess\(\)\)\)/);
+  assert.match(page, /useState\(true\)/);
   assert.match(page, /setBoard\(chessToBoard\(new Chess\(\)\)\)/);
   assert.match(page, /isStandardSetup \? "KQkq" : "-"/);
   assert.match(page, /标准开局/);
@@ -75,6 +80,12 @@ test("ships the browser engine and removes starter assets", async () => {
     page.indexOf('className="setup-presets"') < page.indexOf('className="board-wrap"'),
     "board presets should appear above the board",
   );
+  assert.match(page, /const topTrayColor: Color = isFlipped \? "w" : "b"/);
+  assert.match(page, /const bottomTrayColor: Color = isFlipped \? "b" : "w"/);
+  assert.match(page, /renderPieceTray\(topTrayColor, "top"\)/);
+  assert.match(page, /renderPieceTray\(bottomTrayColor, "bottom"\)/);
+  assert.doesNotMatch(page, /className=\{`piece-panel/);
+  assert.match(css, /\.board-piece-tray \.piece-grid/);
   assert.match(page, /双方子力与胜率/);
   assert.match(page, /Stockfish 局面估算/);
   assert.match(page, /const undoLastTurn =/);

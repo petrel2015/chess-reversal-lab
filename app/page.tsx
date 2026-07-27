@@ -134,7 +134,7 @@ function moveLabel(move: Move) {
 }
 
 export default function Home() {
-  const [board, setBoard] = useState<BoardMap>({});
+  const [board, setBoard] = useState<BoardMap>(() => chessToBoard(new Chess()));
   const [phase, setPhase] = useState<Phase>("setup");
   const [winnerColor, setWinnerColor] = useState<Color>("w");
   const [turn, setTurn] = useState<Color>("w");
@@ -142,12 +142,12 @@ export default function Home() {
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
   const [moves, setMoves] = useState<Move[]>([]);
-  const [message, setMessage] = useState("从棋盘外选择棋子，开始布置残局");
+  const [message, setMessage] = useState("已加载标准开局，可直接开始或继续调整");
   const [engineState, setEngineState] = useState<EngineState>("loading");
   const [evaluation, setEvaluation] = useState("等待局面");
   const [moveTime, setMoveTime] = useState(1200);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [isStandardSetup, setIsStandardSetup] = useState(false);
+  const [isStandardSetup, setIsStandardSetup] = useState(true);
   const [engineScoreWhite, setEngineScoreWhite] = useState<EngineScore | null>(null);
   const chessRef = useRef<Chess | null>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -176,6 +176,8 @@ export default function Home() {
   }, [counts]);
   const shownFiles = isFlipped ? [...files].reverse() : files;
   const shownRanks = isFlipped ? [...ranks].reverse() : ranks;
+  const topTrayColor: Color = isFlipped ? "w" : "b";
+  const bottomTrayColor: Color = isFlipped ? "b" : "w";
   const humanColor = winnerColor === "w" ? "b" : "w";
   const currentTurn = phase === "setup" ? turn : chessRef.current?.turn() ?? turn;
   const canUndo = moves.some((move) => move.color === humanColor);
@@ -567,6 +569,70 @@ export default function Home() {
     if (piece) setMessage(`${piece.color === "w" ? "白" : "黑"}${pieceNames[piece.type]}已放回棋子库`);
   };
 
+  const renderPieceTray = (color: Color, placement: "top" | "bottom") => {
+    const selectedBoardPiece = selectedSquare ? board[selectedSquare] : null;
+    const acceptingReturn =
+      phase === "setup" && selectedBoardPiece?.color === color;
+
+    return (
+      <aside
+        className={`board-piece-tray ${placement} ${acceptingReturn ? "accepting-return" : ""}`}
+        onDragOver={(event) => {
+          if (phase === "setup") event.preventDefault();
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          const source = event.dataTransfer.getData("application/board-square") as Square;
+          const piece = source ? board[source] : null;
+          if (!piece || phase !== "setup") return;
+          if (piece.color !== color) {
+            setMessage(`请将${piece.color === "w" ? "白" : "黑"}棋放回对应颜色的棋子库`);
+            return;
+          }
+          returnPieceToTray(source);
+        }}
+      >
+        <div className="inline-tray-label">
+          <span className={`color-dot ${color}`} />
+          <span>
+            <strong>{color === "w" ? "白方棋子库" : "黑方棋子库"}</strong>
+            <small>点按或拖动</small>
+          </span>
+        </div>
+        <div className="piece-grid">
+          {pieceOrder.map((type) => {
+            const remaining = pieceLimit[type] - counts[color][type];
+            const isSelected = selectedPiece?.color === color && selectedPiece.type === type;
+            return (
+              <button
+                className={`tray-piece ${isSelected ? "selected" : ""}`}
+                disabled={phase !== "setup" || remaining === 0}
+                key={`${placement}-${color}-${type}`}
+                onClick={() => {
+                  setSelectedSquare(null);
+                  setSelectedPiece(isSelected ? null : { color, type });
+                  setMessage(
+                    isSelected
+                      ? "已取消选择"
+                      : `已拿起${color === "w" ? "白" : "黑"}${pieceNames[type]}，点击棋盘放置`,
+                  );
+                }}
+                draggable={phase === "setup" && remaining > 0}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData("application/chess-piece", `${color}${type}`);
+                }}
+                aria-label={`${color === "w" ? "白" : "黑"}${pieceNames[type]}，剩余${remaining}枚`}
+              >
+                <PieceArt piece={{ color, type }} className="piece-glyph" />
+                <span className="piece-count">×{remaining}</span>
+              </button>
+            );
+          })}
+        </div>
+      </aside>
+    );
+  };
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -610,65 +676,6 @@ export default function Home() {
       </section>
 
       <section className="workspace">
-        <aside
-          className={`piece-panel ${selectedSquare && phase === "setup" ? "accepting-return" : ""}`}
-          onDragOver={(event) => {
-            if (phase === "setup") event.preventDefault();
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
-            const source = event.dataTransfer.getData("application/board-square") as Square;
-            if (!source || !board[source] || phase !== "setup") return;
-            returnPieceToTray(source);
-          }}
-        >
-          <div className="panel-heading">
-            <span>棋子库</span>
-            <small>点一下拿起，一次放一枚</small>
-          </div>
-          {(["w", "b"] as Color[]).map((color) => (
-            <div className="piece-group" key={color}>
-              <div className="group-label">
-                <span className={`color-dot ${color}`} />
-                {color === "w" ? "白方棋子" : "黑方棋子"}
-              </div>
-              <div className="piece-grid">
-                {pieceOrder.map((type) => {
-                  const remaining = pieceLimit[type] - counts[color][type];
-                  const isSelected = selectedPiece?.color === color && selectedPiece.type === type;
-                  return (
-                    <button
-                      className={`tray-piece ${isSelected ? "selected" : ""}`}
-                      disabled={phase !== "setup" || remaining === 0}
-                      key={`${color}-${type}`}
-                      onClick={() => {
-                        setSelectedSquare(null);
-                        setSelectedPiece(isSelected ? null : { color, type });
-                        setMessage(
-                          isSelected
-                            ? "已取消选择"
-                            : `已拿起${color === "w" ? "白" : "黑"}${pieceNames[type]}，点击棋盘放置`,
-                        );
-                      }}
-                      draggable={phase === "setup" && remaining > 0}
-                      onDragStart={(event) => {
-                        event.dataTransfer.setData("application/chess-piece", `${color}${type}`);
-                      }}
-                      aria-label={`${color === "w" ? "白" : "黑"}${pieceNames[type]}，剩余${remaining}枚`}
-                    >
-                      <PieceArt piece={{ color, type }} className="piece-glyph" />
-                      <span className="piece-count">×{remaining}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-          <p className="tray-tip">
-            已使用的棋子会从数量中扣除。棋盘上的子可以再次选择、移动或放回这里。
-          </p>
-        </aside>
-
         <div className="board-column">
           <div className="turn-banner">
             <div>
@@ -714,6 +721,8 @@ export default function Home() {
               </div>
             </div>
           )}
+
+          {phase === "setup" && renderPieceTray(topTrayColor, "top")}
 
           <div className="board-wrap">
             <div className="chessboard" role="grid" aria-label="国际象棋棋盘">
@@ -762,6 +771,8 @@ export default function Home() {
               )}
             </div>
           </div>
+
+          {phase === "setup" && renderPieceTray(bottomTrayColor, "bottom")}
 
           <section className="position-dashboard" aria-label="双方子力与胜率">
             <div className="dashboard-heading">
