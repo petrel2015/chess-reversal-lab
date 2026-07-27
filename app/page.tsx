@@ -699,6 +699,22 @@ export default function Home() {
             </button>
           </div>
 
+          {phase === "setup" && (
+            <div className="board-preset-bar">
+              <span>
+                <strong>选择起始棋盘</strong>
+                <small>之后仍可自由增删、移动棋子</small>
+              </span>
+              <div className="setup-presets" aria-label="棋盘预设">
+                <button className="ghost-button" onClick={reset}>空棋盘</button>
+                <button className="standard-setup-button" onClick={loadStandardPosition}>
+                  <PieceArt piece={{ color: "b", type: "p" }} className="preset-piece" />
+                  标准开局
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="board-wrap">
             <div className="chessboard" role="grid" aria-label="国际象棋棋盘">
               {shownRanks.flatMap((rank, rankIndex) =>
@@ -818,16 +834,7 @@ export default function Home() {
                   </button>
                 </div>
               ) : (
-                <>
-                  <div className="setup-presets" aria-label="棋盘预设">
-                    <button className="ghost-button" onClick={reset}>空棋盘</button>
-                    <button className="standard-setup-button" onClick={loadStandardPosition}>
-                      <PieceArt piece={{ color: "b", type: "p" }} className="preset-piece" />
-                      标准开局
-                    </button>
-                  </div>
-                  <span className="edit-hint">摆棋阶段可自由挪子，不按正式走法限制 · 手机直接点按</span>
-                </>
+                <span className="edit-hint">摆棋阶段可自由挪子，不按正式走法限制 · 手机直接点按</span>
               )
             ) : (
               <div className="play-actions">

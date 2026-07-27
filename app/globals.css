@@ -425,6 +425,35 @@ button {
   object-fit: contain;
 }
 
+.board-preset-bar {
+  width: min(100%, 610px);
+  min-height: 54px;
+  margin: 0 auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px 8px 13px;
+  border: 1px solid #34382f;
+  border-radius: 9px;
+  background: rgba(24, 27, 22, 0.88);
+}
+
+.board-preset-bar > span strong,
+.board-preset-bar > span small {
+  display: block;
+}
+
+.board-preset-bar > span strong {
+  font-size: 10px;
+}
+
+.board-preset-bar > span small {
+  color: #696d63;
+  font-size: 8px;
+  margin-top: 3px;
+}
+
 .board-wrap {
   width: min(100%, 610px);
   margin: 0 auto;
@@ -1203,6 +1232,16 @@ footer {
     padding: 15px 12px;
   }
   .board-column { order: 2; padding: 18px 10px; }
+  .board-preset-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .board-preset-bar .setup-presets {
+    width: 100%;
+  }
+  .board-preset-bar .setup-presets > button {
+    flex: 1;
+  }
   .position-dashboard {
     padding: 12px 10px;
   }

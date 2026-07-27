@@ -70,6 +70,11 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /isStandardSetup \? "KQkq" : "-"/);
   assert.match(page, /标准开局/);
   assert.match(page, /空棋盘/);
+  assert.match(page, /选择起始棋盘/);
+  assert.ok(
+    page.indexOf('className="setup-presets"') < page.indexOf('className="board-wrap"'),
+    "board presets should appear above the board",
+  );
   assert.match(page, /双方子力与胜率/);
   assert.match(page, /Stockfish 局面估算/);
   assert.match(page, /const undoLastTurn =/);
