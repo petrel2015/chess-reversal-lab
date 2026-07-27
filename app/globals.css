@@ -771,10 +771,26 @@ button {
 }
 
 .setup-presets {
-  display: flex;
+  width: 254px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
+}
+
+.board-preset-bar .setup-presets > button {
+  width: 100%;
+  height: 42px;
+  min-height: 42px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 7px;
+  font: 700 11px var(--font-noto), sans-serif;
+  white-space: nowrap;
 }
 
 .play-actions {
@@ -806,18 +822,11 @@ button {
 }
 
 .standard-setup-button {
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
   gap: 7px;
   border: 1px solid rgba(201, 240, 82, 0.58);
-  border-radius: 7px;
   background: rgba(201, 240, 82, 0.12);
   color: var(--acid);
   cursor: pointer;
-  padding: 8px 13px;
-  font: 700 11px var(--font-noto), sans-serif;
-  white-space: nowrap;
 }
 
 .preset-piece {
@@ -1285,7 +1294,7 @@ footer {
     width: 100%;
   }
   .board-preset-bar .setup-presets > button {
-    flex: 1;
+    min-width: 0;
   }
   .position-dashboard {
     padding: 12px 10px;

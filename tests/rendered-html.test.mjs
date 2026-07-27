@@ -86,6 +86,8 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /renderPieceTray\(bottomTrayColor, "bottom"\)/);
   assert.doesNotMatch(page, /className=\{`piece-panel/);
   assert.match(css, /\.board-piece-tray \.piece-grid/);
+  assert.match(css, /\.setup-presets\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /\.board-preset-bar \.setup-presets > button\s*\{[\s\S]*?height:\s*42px/);
   assert.match(page, /双方子力与胜率/);
   assert.match(page, /Stockfish 局面估算/);
   assert.match(page, /const undoLastTurn =/);
