@@ -91,6 +91,9 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /双方子力与胜率/);
   assert.match(page, /Stockfish 局面估算/);
   assert.match(page, /子力与胜算/);
+  assert.match(page, /const materialDelta = useMemo/);
+  assert.match(page, /b: whiteLead === 0 \? 0 : -whiteLead/);
+  assert.match(page, /子力差 \{formatMaterialDelta\(materialDelta\[color\]\)\}/);
   assert.ok(
     page.indexOf('className="control-panel"') < page.indexOf('className="position-dashboard"'),
     "material and win-chance dashboard should live in the right control panel",

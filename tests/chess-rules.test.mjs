@@ -8,6 +8,17 @@ function destinations(fen, square) {
     .map((move) => move.to);
 }
 
+const pieceValue = { k: 0, q: 9, r: 5, b: 3, n: 3, p: 1 };
+
+function materialDelta(chess) {
+  const totals = { w: 0, b: 0 };
+  chess.board().flat().filter(Boolean).forEach((piece) => {
+    totals[piece.color] += pieceValue[piece.type];
+  });
+  const whiteLead = totals.w - totals.b;
+  return { w: whiteLead, b: whiteLead === 0 ? 0 : -whiteLead };
+}
+
 test("white pawns cannot move toward a lower rank", () => {
   const moves = destinations("4k3/8/8/8/3P4/8/8/4K3 w - - 0 1", "d4");
   assert.ok(moves.includes("d5"));
@@ -26,6 +37,16 @@ test("the standard preset contains all 32 pieces and castling rights", () => {
   assert.equal(pieces.length, 32);
   assert.equal(chess.turn(), "w");
   assert.match(chess.fen(), / w KQkq /);
+  assert.deepEqual(materialDelta(chess), { w: 0, b: 0 });
+});
+
+test("capturing a pawn shows equal and opposite material differences", () => {
+  const chess = new Chess();
+  chess.move("e4");
+  chess.move("d5");
+  chess.move("exd5");
+
+  assert.deepEqual(materialDelta(chess), { w: 1, b: -1 });
 });
 
 test("undoing a turn removes the AI reply and the latest human move", () => {

@@ -133,6 +133,10 @@ function moveLabel(move: Move) {
   return `${move.color === "w" ? "白" : "黑"} · ${move.san}`;
 }
 
+function formatMaterialDelta(value: number) {
+  return value > 0 ? `+${value}` : `${value}`;
+}
+
 export default function Home() {
   const [board, setBoard] = useState<BoardMap>(() => chessToBoard(new Chess()));
   const [phase, setPhase] = useState<Phase>("setup");
@@ -165,7 +169,7 @@ export default function Home() {
   }, [board]);
 
   const setupError = useMemo(() => validatePosition(board, turn), [board, turn]);
-  const material = useMemo(() => {
+  const materialTotals = useMemo(() => {
     const score: Record<Color, number> = { w: 0, b: 0 };
     (["w", "b"] as Color[]).forEach((color) => {
       pieceOrder.forEach((type) => {
@@ -174,6 +178,13 @@ export default function Home() {
     });
     return score;
   }, [counts]);
+  const materialDelta = useMemo(() => {
+    const whiteLead = materialTotals.w - materialTotals.b;
+    return {
+      w: whiteLead,
+      b: whiteLead === 0 ? 0 : -whiteLead,
+    } satisfies Record<Color, number>;
+  }, [materialTotals]);
   const shownFiles = isFlipped ? [...files].reverse() : files;
   const shownRanks = isFlipped ? [...ranks].reverse() : ranks;
   const topTrayColor: Color = isFlipped ? "w" : "b";
@@ -197,11 +208,11 @@ export default function Home() {
     const centipawns =
       phase !== "setup" && engineScoreWhite?.cp !== undefined
         ? engineScoreWhite.cp
-        : (material.w - material.b) * 100;
+        : materialDelta.w * 100;
     const rawWhite = 100 / (1 + Math.exp(-centipawns / 240));
     const white = Math.max(1, Math.min(99, Math.round(rawWhite)));
     return { w: white, b: 100 - white };
-  }, [engineScoreWhite, material, moves, phase]);
+  }, [engineScoreWhite, materialDelta, moves, phase]);
   const chanceSource =
     phase === "over"
       ? "对局结果"
@@ -832,7 +843,9 @@ export default function Home() {
                   <div className="material-label">
                     <span className={`turn-dot ${color}`} />
                     <strong>{color === "w" ? "白方" : "黑方"}</strong>
-                    <small>子力 {material[color]}</small>
+                    <small className={materialDelta[color] > 0 ? "positive" : materialDelta[color] < 0 ? "negative" : ""}>
+                      子力差 {formatMaterialDelta(materialDelta[color])}
+                    </small>
                   </div>
                   <div className="material-pieces" aria-label={`${color === "w" ? "白方" : "黑方"}当前棋子`}>
                     {pieceOrder.map((type) => (

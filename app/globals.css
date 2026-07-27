@@ -670,6 +670,14 @@ button {
   font-size: 8px;
 }
 
+.material-label small.positive {
+  color: var(--acid);
+}
+
+.material-label small.negative {
+  color: #e78e73;
+}
+
 .material-pieces {
   width: 100%;
   min-width: 0;
