@@ -374,19 +374,64 @@ button {
   margin-top: 2px;
 }
 
-.icon-button {
-  width: 34px;
-  height: 34px;
-  border-radius: 7px;
+.flip-board-button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 9px;
   border: 1px solid var(--line);
   background: #171916;
   cursor: pointer;
-  color: #9b9e96;
+  color: #d8dbd2;
+  padding: 5px 11px 5px 7px;
+  font: 700 11px var(--font-noto), sans-serif;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
 
-.icon-button:hover {
-  border-color: #60645a;
-  color: var(--ink);
+.flip-board-button:hover {
+  border-color: rgba(201, 240, 82, 0.68);
+  background: rgba(201, 240, 82, 0.08);
+  color: var(--acid);
+}
+
+.flip-board-button:focus-visible {
+  outline: 2px solid var(--acid);
+  outline-offset: 3px;
+}
+
+.flip-side-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  grid-template-columns: 8px 1fr 8px;
+  place-items: center;
+  border-radius: 7px;
+  background: #292c26;
+  border: 1px solid #3a3e36;
+}
+
+.flip-side-icon b {
+  color: var(--acid);
+  font: 800 14px/1 var(--font-space), sans-serif;
+}
+
+.flip-color {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.flip-color.white {
+  background: #f2f1e7;
+  box-shadow: 0 0 0 1px #a9aa9e;
+}
+
+.flip-color.black {
+  background: #11130f;
+  box-shadow: 0 0 0 1px #65695e;
 }
 
 .board-wrap {

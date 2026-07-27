@@ -60,6 +60,9 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /const legalTargets =/);
   assert.match(page, /\.moves\(\{ square: selectedSquare, verbose: true \}\)/);
   assert.match(page, /兵不能后退/);
+  assert.match(page, /翻转棋盘视角，仅改变显示方向/);
+  assert.match(page, /翻转视角/);
+  assert.doesNotMatch(page, /className="icon-button"/);
   assert.match(page, /放回棋子库/);
   assert.match(page, /application\/board-square/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);

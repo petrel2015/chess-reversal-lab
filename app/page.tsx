@@ -539,8 +539,18 @@ export default function Home() {
               </strong>
               <small>{message}</small>
             </div>
-            <button className="icon-button" onClick={() => setIsFlipped((value) => !value)} aria-label="翻转棋盘">
-              ↻
+            <button
+              className="flip-board-button"
+              onClick={() => setIsFlipped((value) => !value)}
+              aria-label="翻转棋盘视角，仅改变显示方向"
+              title="仅改变棋盘观看方向，不会重置棋局"
+            >
+              <span className="flip-side-icon" aria-hidden="true">
+                <i className="flip-color white" />
+                <b>⇅</b>
+                <i className="flip-color black" />
+              </span>
+              <span>翻转视角</span>
             </button>
           </div>
 
