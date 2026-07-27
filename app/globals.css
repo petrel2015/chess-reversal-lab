@@ -527,6 +527,147 @@ button {
 .dark .rank-label,
 .dark .file-label { color: rgba(237, 239, 220, 0.58); }
 
+.position-dashboard {
+  width: min(100%, 610px);
+  margin: 14px auto 0;
+  padding: 14px;
+  border: 1px solid #34382f;
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(35, 39, 32, 0.94), rgba(19, 21, 18, 0.94));
+}
+
+.dashboard-heading,
+.material-side,
+.material-label,
+.chance-labels {
+  display: flex;
+  align-items: center;
+}
+
+.dashboard-heading {
+  justify-content: space-between;
+  margin-bottom: 11px;
+}
+
+.dashboard-heading strong {
+  font-size: 11px;
+}
+
+.dashboard-heading small {
+  color: var(--acid);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+}
+
+.material-list {
+  display: grid;
+  gap: 6px;
+}
+
+.material-side {
+  min-height: 37px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.material-label {
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.material-label strong {
+  font-size: 10px;
+}
+
+.material-label small {
+  color: #777b71;
+  font-size: 8px;
+}
+
+.material-pieces {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.material-pieces em {
+  color: #5f625a;
+  font-size: 8px;
+  font-style: normal;
+}
+
+.material-piece {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.material-piece-art {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.material-piece b {
+  min-width: 8px;
+  color: #9a9e93;
+  font: 700 8px var(--font-space), sans-serif;
+}
+
+.win-chance {
+  margin-top: 12px;
+}
+
+.chance-labels {
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.chance-labels strong {
+  min-width: 70px;
+  font: 750 10px var(--font-space), sans-serif;
+}
+
+.chance-labels strong:last-child {
+  text-align: right;
+}
+
+.chance-labels span {
+  color: #777b71;
+  font-size: 8px;
+}
+
+.chance-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #090b08;
+  border: 1px solid #494e42;
+}
+
+.chance-track > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #f3f2e7, #b9bdac);
+  border-right: 2px solid var(--acid);
+  transition: width 300ms ease;
+}
+
+.chance-note {
+  display: block;
+  color: #565a51;
+  font-size: 7px;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
 .board-actions {
   max-width: 610px;
   margin: 14px auto 0;
@@ -552,6 +693,34 @@ button {
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
+}
+
+.play-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.undo-button {
+  min-height: 34px;
+  border: 1px solid rgba(201, 240, 82, 0.5);
+  border-radius: 7px;
+  background: rgba(201, 240, 82, 0.1);
+  color: var(--acid);
+  cursor: pointer;
+  padding: 7px 12px;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.undo-button:hover:not(:disabled) {
+  background: var(--acid);
+  color: var(--acid-dark);
+}
+
+.undo-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .standard-setup-button {
@@ -1043,6 +1212,20 @@ footer {
     padding: 15px 12px;
   }
   .board-column { order: 2; padding: 18px 10px; }
+  .position-dashboard {
+    padding: 12px 10px;
+  }
+  .material-side {
+    align-items: flex-start;
+    gap: 7px;
+  }
+  .material-piece-art {
+    width: 19px;
+    height: 19px;
+  }
+  .material-pieces {
+    gap: 2px;
+  }
   .board-actions {
     align-items: flex-start;
     flex-wrap: wrap;

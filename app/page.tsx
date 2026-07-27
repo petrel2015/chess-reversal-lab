@@ -7,11 +7,14 @@ type Piece = { color: Color; type: PieceSymbol };
 type BoardMap = Record<string, Piece>;
 type Phase = "setup" | "playing" | "over";
 type EngineState = "loading" | "ready" | "thinking" | "error";
+type EngineScore = { cp?: number; mate?: number };
+type StartingPosition = { board: BoardMap; turn: Color; isStandard: boolean };
 
 const files = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
 const ranks = [8, 7, 6, 5, 4, 3, 2, 1] as const;
 const pieceOrder: PieceSymbol[] = ["k", "q", "r", "b", "n", "p"];
 const pieceLimit: Record<PieceSymbol, number> = { k: 1, q: 1, r: 2, b: 2, n: 2, p: 8 };
+const pieceValue: Record<PieceSymbol, number> = { k: 0, q: 9, r: 5, b: 3, n: 3, p: 1 };
 const pieceNames: Record<PieceSymbol, string> = {
   k: "王",
   q: "后",
@@ -82,6 +85,12 @@ function chessToBoard(chess: Chess): BoardMap {
   return next;
 }
 
+function cloneBoard(board: BoardMap): BoardMap {
+  return Object.fromEntries(
+    Object.entries(board).map(([square, piece]) => [square, { ...piece }]),
+  );
+}
+
 function validatePosition(board: BoardMap, turn: Color) {
   const pieces = Object.entries(board);
   const whiteKings = pieces.filter(([, p]) => p.color === "w" && p.type === "k");
@@ -139,10 +148,12 @@ export default function Home() {
   const [moveTime, setMoveTime] = useState(1200);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isStandardSetup, setIsStandardSetup] = useState(false);
+  const [engineScoreWhite, setEngineScoreWhite] = useState<EngineScore | null>(null);
   const chessRef = useRef<Chess | null>(null);
   const workerRef = useRef<Worker | null>(null);
-  const searchTokenRef = useRef(0);
-  const pendingScoreRef = useRef<{ cp?: number; mate?: number }>({});
+  const activeSearchFenRef = useRef<string | null>(null);
+  const pendingScoreRef = useRef<EngineScore>({});
+  const startingPositionRef = useRef<StartingPosition | null>(null);
 
   const counts = useMemo(() => {
     const result: Record<Color, Record<PieceSymbol, number>> = {
@@ -154,10 +165,47 @@ export default function Home() {
   }, [board]);
 
   const setupError = useMemo(() => validatePosition(board, turn), [board, turn]);
+  const material = useMemo(() => {
+    const score: Record<Color, number> = { w: 0, b: 0 };
+    (["w", "b"] as Color[]).forEach((color) => {
+      pieceOrder.forEach((type) => {
+        score[color] += counts[color][type] * pieceValue[type];
+      });
+    });
+    return score;
+  }, [counts]);
   const shownFiles = isFlipped ? [...files].reverse() : files;
   const shownRanks = isFlipped ? [...ranks].reverse() : ranks;
   const humanColor = winnerColor === "w" ? "b" : "w";
   const currentTurn = phase === "setup" ? turn : chessRef.current?.turn() ?? turn;
+  const canUndo = moves.some((move) => move.color === humanColor);
+  const winChances = useMemo(() => {
+    const chess = chessRef.current;
+    if (phase === "over" && chess?.isCheckmate()) {
+      return chess.turn() === "w" ? { w: 0, b: 100 } : { w: 100, b: 0 };
+    }
+    if (phase === "over" && chess?.isDraw()) return { w: 50, b: 50 };
+
+    if (phase !== "setup" && engineScoreWhite?.mate !== undefined) {
+      if (engineScoreWhite.mate > 0) return { w: 99, b: 1 };
+      if (engineScoreWhite.mate < 0) return { w: 1, b: 99 };
+      return { w: 50, b: 50 };
+    }
+
+    const centipawns =
+      phase !== "setup" && engineScoreWhite?.cp !== undefined
+        ? engineScoreWhite.cp
+        : (material.w - material.b) * 100;
+    const rawWhite = 100 / (1 + Math.exp(-centipawns / 240));
+    const white = Math.max(1, Math.min(99, Math.round(rawWhite)));
+    return { w: white, b: 100 - white };
+  }, [engineScoreWhite, material, moves, phase]);
+  const chanceSource =
+    phase === "over"
+      ? "对局结果"
+      : phase !== "setup" && engineScoreWhite
+        ? "Stockfish 局面估算"
+        : "按当前子力估算";
   const legalTargets = useMemo(() => {
     const chess = chessRef.current;
     if (!chess || phase !== "playing" || !selectedSquare || chess.turn() !== humanColor) {
@@ -171,7 +219,9 @@ export default function Home() {
   }, [board, humanColor, phase, selectedSquare]);
 
   const updateEvaluation = useCallback((score: { cp?: number; mate?: number }) => {
+    const whitePerspective = winnerColor === "w" ? 1 : -1;
     if (score.mate !== undefined) {
+      setEngineScoreWhite({ mate: score.mate * whitePerspective });
       const favorable = score.mate > 0;
       setEvaluation(
         favorable
@@ -180,13 +230,14 @@ export default function Home() {
       );
       return;
     }
+    setEngineScoreWhite({ cp: (score.cp ?? 0) * whitePerspective });
     const pawns = (score.cp ?? 0) / 100;
     if (pawns > 2.5) setEvaluation(`指定方明显优势 · +${pawns.toFixed(1)}`);
     else if (pawns > 0.6) setEvaluation(`指定方稍优 · +${pawns.toFixed(1)}`);
     else if (pawns < -2.5) setEvaluation(`指定方明显劣势 · ${pawns.toFixed(1)}`);
     else if (pawns < -0.6) setEvaluation(`指定方稍劣 · ${pawns.toFixed(1)}`);
     else setEvaluation(`局面接近均势 · ${pawns >= 0 ? "+" : ""}${pawns.toFixed(1)}`);
-  }, []);
+  }, [winnerColor]);
 
   const makeEngineMove = useCallback(() => {
     const chess = chessRef.current;
@@ -196,7 +247,7 @@ export default function Home() {
       setMessage("引擎未能载入，请刷新页面重试");
       return;
     }
-    searchTokenRef.current += 1;
+    activeSearchFenRef.current = chess.fen();
     pendingScoreRef.current = {};
     setEngineState("thinking");
     setSelectedSquare(null);
@@ -224,9 +275,23 @@ export default function Home() {
       }
       if (line.startsWith("bestmove ")) {
         const chess = chessRef.current;
-        if (!chess) return;
+        if (!chess) {
+          activeSearchFenRef.current = null;
+          setEngineState("ready");
+          return;
+        }
         const uci = line.split(" ")[1];
-        if (!uci || uci === "(none)") return;
+        if (!uci || uci === "(none)") {
+          activeSearchFenRef.current = null;
+          setEngineState("ready");
+          return;
+        }
+        const searchedFen = activeSearchFenRef.current;
+        activeSearchFenRef.current = null;
+        if (!searchedFen || chess.fen() !== searchedFen) {
+          setEngineState("ready");
+          return;
+        }
         try {
           const move = chess.move({
             from: uci.slice(0, 2),
@@ -281,6 +346,7 @@ export default function Home() {
     }
     setBoard((current) => ({ ...current, [square]: piece }));
     setIsStandardSetup(false);
+    setEngineScoreWhite(null);
     setSelectedPiece(null);
     setSelectedSquare(null);
     setMessage(`${piece.color === "w" ? "白" : "黑"}${pieceNames[piece.type]}已放到 ${square}，可继续选择棋子`);
@@ -302,6 +368,7 @@ export default function Home() {
       return next;
     });
     setIsStandardSetup(false);
+    setEngineScoreWhite(null);
     setSelectedSquare(null);
     setMessage(target ? `已交换 ${from} 与 ${to} 的棋子` : `已将棋子从 ${from} 移到 ${to}`);
   };
@@ -353,6 +420,8 @@ export default function Home() {
       setBoard(chessToBoard(chess));
       setLastMove({ from: move.from, to: move.to });
       setMoves((current) => [...current, move]);
+      setEngineScoreWhite(null);
+      setEvaluation("等待引擎重新评估");
       setSelectedSquare(null);
       if (chess.isGameOver()) {
         setPhase("over");
@@ -369,13 +438,20 @@ export default function Home() {
   const startGame = () => {
     if (setupError || engineState === "error") return;
     try {
+      startingPositionRef.current = {
+        board: cloneBoard(board),
+        turn,
+        isStandard: isStandardSetup,
+      };
       const chess = new Chess(boardToFen(board, turn, isStandardSetup ? "KQkq" : "-"));
       chessRef.current = chess;
+      activeSearchFenRef.current = null;
       setMoves([]);
       setLastMove(null);
       setSelectedPiece(null);
       setSelectedSquare(null);
       setPhase(chess.isGameOver() ? "over" : "playing");
+      setEngineScoreWhite(null);
       setEvaluation("等待引擎评估");
       if (chess.isGameOver()) {
         setMessage(describeEnding(chess));
@@ -392,6 +468,9 @@ export default function Home() {
   const reset = () => {
     workerRef.current?.postMessage("stop");
     chessRef.current = null;
+    activeSearchFenRef.current = null;
+    startingPositionRef.current = null;
+    if (engineState !== "error" && engineState !== "loading") setEngineState("ready");
     setBoard({});
     setPhase("setup");
     setMoves([]);
@@ -399,6 +478,7 @@ export default function Home() {
     setSelectedPiece(null);
     setSelectedSquare(null);
     setIsStandardSetup(false);
+    setEngineScoreWhite(null);
     setEvaluation("等待局面");
     setMessage("棋盘已清空，重新布置残局");
   };
@@ -406,18 +486,60 @@ export default function Home() {
   const editAgain = () => {
     workerRef.current?.postMessage("stop");
     chessRef.current = null;
+    activeSearchFenRef.current = null;
+    if (engineState !== "error" && engineState !== "loading") setEngineState("ready");
+    const starting = startingPositionRef.current;
+    if (starting) {
+      setBoard(cloneBoard(starting.board));
+      setTurn(starting.turn);
+      setIsStandardSetup(starting.isStandard);
+    } else {
+      setIsStandardSetup(false);
+    }
+    startingPositionRef.current = null;
     setPhase("setup");
     setMoves([]);
     setLastMove(null);
+    setSelectedPiece(null);
     setSelectedSquare(null);
-    setIsStandardSetup(false);
+    setEngineScoreWhite(null);
     setEvaluation("等待局面");
-    setMessage("已返回摆棋模式");
+    setMessage(starting ? "已恢复本局开始前的摆法，可重新调整" : "已返回摆棋模式");
+  };
+
+  const undoLastTurn = () => {
+    const chess = chessRef.current;
+    if (!chess || !canUndo) {
+      setMessage("还没有可以撤销的己方棋步");
+      return;
+    }
+
+    workerRef.current?.postMessage("stop");
+    activeSearchFenRef.current = null;
+    let undone: Move | null = null;
+    do {
+      undone = chess.undo();
+    } while (undone && undone.color !== humanColor);
+
+    const history = chess.history({ verbose: true }) as Move[];
+    const previous = history.at(-1);
+    setBoard(chessToBoard(chess));
+    setMoves(history);
+    setLastMove(previous ? { from: previous.from, to: previous.to } : null);
+    setSelectedSquare(null);
+    setPhase("playing");
+    setEngineScoreWhite(null);
+    setEvaluation("等待重新评估");
+    if (engineState !== "error") setEngineState("ready");
+    setMessage("已悔棋，轮到你重新落子");
   };
 
   const loadStandardPosition = () => {
     workerRef.current?.postMessage("stop");
     chessRef.current = null;
+    activeSearchFenRef.current = null;
+    startingPositionRef.current = null;
+    if (engineState !== "error" && engineState !== "loading") setEngineState("ready");
     setBoard(chessToBoard(new Chess()));
     setTurn("w");
     setPhase("setup");
@@ -426,6 +548,7 @@ export default function Home() {
     setSelectedPiece(null);
     setSelectedSquare(null);
     setIsStandardSetup(true);
+    setEngineScoreWhite(null);
     setEvaluation("等待局面");
     setMessage("已加载标准开局：32 枚棋子就位，白方先走");
   };
@@ -439,6 +562,7 @@ export default function Home() {
       return next;
     });
     setIsStandardSetup(false);
+    setEngineScoreWhite(null);
     setSelectedSquare(null);
     if (piece) setMessage(`${piece.color === "w" ? "白" : "黑"}${pieceNames[piece.type]}已放回棋子库`);
   };
@@ -623,6 +747,53 @@ export default function Home() {
             </div>
           </div>
 
+          <section className="position-dashboard" aria-label="双方子力与胜率">
+            <div className="dashboard-heading">
+              <strong>局面仪表</strong>
+              <small>{chanceSource}</small>
+            </div>
+            <div className="material-list">
+              {(["w", "b"] as Color[]).map((color) => (
+                <div className={`material-side ${color}`} key={color}>
+                  <div className="material-label">
+                    <span className={`turn-dot ${color}`} />
+                    <strong>{color === "w" ? "白方" : "黑方"}</strong>
+                    <small>子力 {material[color]}</small>
+                  </div>
+                  <div className="material-pieces" aria-label={`${color === "w" ? "白方" : "黑方"}当前棋子`}>
+                    {pieceOrder.map((type) => (
+                      counts[color][type] > 0 && (
+                        <span className="material-piece" key={type}>
+                          <PieceArt piece={{ color, type }} className="material-piece-art" />
+                          <b>{counts[color][type]}</b>
+                        </span>
+                      )
+                    ))}
+                    {Object.values(counts[color]).every((count) => count === 0) && <em>暂无棋子</em>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="win-chance">
+              <div className="chance-labels">
+                <strong>白方 {winChances.w}%</strong>
+                <span>胜算估计</span>
+                <strong>黑方 {winChances.b}%</strong>
+              </div>
+              <div
+                className="chance-track"
+                role="progressbar"
+                aria-label={`白方胜算 ${winChances.w}%，黑方胜算 ${winChances.b}%`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={winChances.w}
+              >
+                <span style={{ width: `${winChances.w}%` }} />
+              </div>
+              <small className="chance-note">胜率为局面估算，不代表理论必胜；和棋可能性折算在双方数值中。</small>
+            </div>
+          </section>
+
           <div className="board-actions">
             {phase === "setup" ? (
               selectedSquare && board[selectedSquare] ? (
@@ -659,9 +830,12 @@ export default function Home() {
                 </>
               )
             ) : (
-              <button className="ghost-button" onClick={editAgain}>返回摆棋</button>
+              <div className="play-actions">
+                <button className="undo-button" disabled={!canUndo} onClick={undoLastTurn}>悔棋重走</button>
+                <button className="ghost-button" onClick={editAgain}>重摆开局</button>
+              </div>
             )}
-            {phase !== "setup" && <span>绿色圆点是合法落点 · 兵不能后退 · 升变默认为后</span>}
+            {phase !== "setup" && <span>悔棋会撤销 AI 回应和你的上一手 · 重摆会恢复开局摆法</span>}
           </div>
         </div>
 
@@ -762,7 +936,7 @@ export default function Home() {
                   </ol>
                 )}
               </div>
-              <button className="start-button secondary" onClick={editAgain}>调整局面 <span>↗</span></button>
+              <button className="start-button secondary" onClick={editAgain}>重摆开局 <span>↗</span></button>
             </>
           )}
         </aside>

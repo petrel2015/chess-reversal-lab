@@ -27,3 +27,18 @@ test("the standard preset contains all 32 pieces and castling rights", () => {
   assert.equal(chess.turn(), "w");
   assert.match(chess.fen(), / w KQkq /);
 });
+
+test("undoing a turn removes the AI reply and the latest human move", () => {
+  const chess = new Chess();
+  chess.move("e4");
+  chess.move("e5");
+
+  let undone;
+  do {
+    undone = chess.undo();
+  } while (undone && undone.color !== "w");
+
+  assert.equal(chess.history().length, 0);
+  assert.equal(chess.turn(), "w");
+  assert.equal(chess.get("e2")?.type, "p");
+});

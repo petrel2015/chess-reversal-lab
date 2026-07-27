@@ -46,7 +46,7 @@ test("ships the browser engine and removes starter assets", async () => {
     readFile(new URL("../.github/workflows/pages.yml", import.meta.url), "utf8"),
   ]);
   assert.match(page, /new Worker\(`\$\{basePath\}\/engine\/stockfish\.js`\)/);
-  assert.match(page, /new Chess\(boardToFen\(board, turn\)\)/);
+  assert.match(page, /new Chess\(boardToFen\(board, turn, isStandardSetup \? "KQkq" : "-"\)\)/);
   assert.match(page, /chess-pieces\/w-k\.png/);
   assert.doesNotMatch(page, /[♔♕♖♗♘♙♚♛♜♝♞♟]/);
   assert.match(css, /grid-template-rows:\s*repeat\(8,\s*minmax\(0,\s*1fr\)\)/);
@@ -68,6 +68,13 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /isStandardSetup \? "KQkq" : "-"/);
   assert.match(page, /标准开局/);
   assert.match(page, /空棋盘/);
+  assert.match(page, /双方子力与胜率/);
+  assert.match(page, /Stockfish 局面估算/);
+  assert.match(page, /const undoLastTurn =/);
+  assert.match(page, /悔棋重走/);
+  assert.match(page, /重摆开局/);
+  assert.match(page, /startingPositionRef/);
+  assert.match(page, /activeSearchFenRef/);
   assert.match(page, /放回棋子库/);
   assert.match(page, /application\/board-square/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
