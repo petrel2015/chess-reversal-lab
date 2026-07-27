@@ -52,7 +52,7 @@ function PieceArt({ piece, className }: { piece: Piece; className: string }) {
   );
 }
 
-function boardToFen(board: BoardMap, turn: Color) {
+function boardToFen(board: BoardMap, turn: Color, castling = "-") {
   const rows = ranks.map((rank) => {
     let row = "";
     let empty = 0;
@@ -69,7 +69,7 @@ function boardToFen(board: BoardMap, turn: Color) {
     }
     return row + (empty || "");
   });
-  return `${rows.join("/")} ${turn} - - 0 1`;
+  return `${rows.join("/")} ${turn} ${castling} - 0 1`;
 }
 
 function chessToBoard(chess: Chess): BoardMap {
@@ -138,6 +138,7 @@ export default function Home() {
   const [evaluation, setEvaluation] = useState("等待局面");
   const [moveTime, setMoveTime] = useState(1200);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isStandardSetup, setIsStandardSetup] = useState(false);
   const chessRef = useRef<Chess | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const searchTokenRef = useRef(0);
@@ -279,6 +280,7 @@ export default function Home() {
       return;
     }
     setBoard((current) => ({ ...current, [square]: piece }));
+    setIsStandardSetup(false);
     setSelectedPiece(null);
     setSelectedSquare(null);
     setMessage(`${piece.color === "w" ? "白" : "黑"}${pieceNames[piece.type]}已放到 ${square}，可继续选择棋子`);
@@ -299,6 +301,7 @@ export default function Home() {
       if (target) next[from] = target;
       return next;
     });
+    setIsStandardSetup(false);
     setSelectedSquare(null);
     setMessage(target ? `已交换 ${from} 与 ${to} 的棋子` : `已将棋子从 ${from} 移到 ${to}`);
   };
@@ -366,7 +369,7 @@ export default function Home() {
   const startGame = () => {
     if (setupError || engineState === "error") return;
     try {
-      const chess = new Chess(boardToFen(board, turn));
+      const chess = new Chess(boardToFen(board, turn, isStandardSetup ? "KQkq" : "-"));
       chessRef.current = chess;
       setMoves([]);
       setLastMove(null);
@@ -395,6 +398,7 @@ export default function Home() {
     setLastMove(null);
     setSelectedPiece(null);
     setSelectedSquare(null);
+    setIsStandardSetup(false);
     setEvaluation("等待局面");
     setMessage("棋盘已清空，重新布置残局");
   };
@@ -406,8 +410,24 @@ export default function Home() {
     setMoves([]);
     setLastMove(null);
     setSelectedSquare(null);
+    setIsStandardSetup(false);
     setEvaluation("等待局面");
     setMessage("已返回摆棋模式");
+  };
+
+  const loadStandardPosition = () => {
+    workerRef.current?.postMessage("stop");
+    chessRef.current = null;
+    setBoard(chessToBoard(new Chess()));
+    setTurn("w");
+    setPhase("setup");
+    setMoves([]);
+    setLastMove(null);
+    setSelectedPiece(null);
+    setSelectedSquare(null);
+    setIsStandardSetup(true);
+    setEvaluation("等待局面");
+    setMessage("已加载标准开局：32 枚棋子就位，白方先走");
   };
 
   const returnPieceToTray = (square: Square | null) => {
@@ -418,6 +438,7 @@ export default function Home() {
       delete next[square];
       return next;
     });
+    setIsStandardSetup(false);
     setSelectedSquare(null);
     if (piece) setMessage(`${piece.color === "w" ? "白" : "黑"}${pieceNames[piece.type]}已放回棋子库`);
   };
@@ -627,7 +648,13 @@ export default function Home() {
                 </div>
               ) : (
                 <>
-                  <button className="ghost-button" onClick={reset}>清空棋盘</button>
+                  <div className="setup-presets" aria-label="棋盘预设">
+                    <button className="ghost-button" onClick={reset}>空棋盘</button>
+                    <button className="standard-setup-button" onClick={loadStandardPosition}>
+                      <PieceArt piece={{ color: "b", type: "p" }} className="preset-piece" />
+                      标准开局
+                    </button>
+                  </div>
                   <span className="edit-hint">摆棋阶段可自由挪子，不按正式走法限制 · 手机直接点按</span>
                 </>
               )

@@ -547,6 +547,44 @@ button {
   margin-left: auto;
 }
 
+.setup-presets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.standard-setup-button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(201, 240, 82, 0.58);
+  border-radius: 7px;
+  background: rgba(201, 240, 82, 0.12);
+  color: var(--acid);
+  cursor: pointer;
+  padding: 8px 13px;
+  font: 700 11px var(--font-noto), sans-serif;
+  white-space: nowrap;
+}
+
+.preset-piece {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.standard-setup-button:hover {
+  background: var(--acid);
+  color: #10130d;
+}
+
+.standard-setup-button:focus-visible {
+  outline: 2px solid var(--acid);
+  outline-offset: 3px;
+}
+
 .selection-toolbar {
   width: 100%;
   min-height: 58px;
@@ -1005,6 +1043,15 @@ footer {
     padding: 15px 12px;
   }
   .board-column { order: 2; padding: 18px 10px; }
+  .board-actions {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .edit-hint {
+    width: 100%;
+    margin-left: 0;
+    text-align: left;
+  }
   .control-panel { order: 3; border-top: 1px solid var(--line); }
   .piece-panel .piece-group {
     display: block;

@@ -63,6 +63,11 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /翻转棋盘视角，仅改变显示方向/);
   assert.match(page, /翻转视角/);
   assert.doesNotMatch(page, /className="icon-button"/);
+  assert.match(page, /const loadStandardPosition =/);
+  assert.match(page, /setBoard\(chessToBoard\(new Chess\(\)\)\)/);
+  assert.match(page, /isStandardSetup \? "KQkq" : "-"/);
+  assert.match(page, /标准开局/);
+  assert.match(page, /空棋盘/);
   assert.match(page, /放回棋子库/);
   assert.match(page, /application\/board-square/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);

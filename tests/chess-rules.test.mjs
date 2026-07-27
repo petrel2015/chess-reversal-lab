@@ -19,3 +19,11 @@ test("black pawns cannot move toward a higher rank", () => {
   assert.ok(moves.includes("d4"));
   assert.ok(!moves.includes("d6"));
 });
+
+test("the standard preset contains all 32 pieces and castling rights", () => {
+  const chess = new Chess();
+  const pieces = chess.board().flat().filter(Boolean);
+  assert.equal(pieces.length, 32);
+  assert.equal(chess.turn(), "w");
+  assert.match(chess.fen(), / w KQkq /);
+});
