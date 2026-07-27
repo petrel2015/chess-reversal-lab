@@ -103,11 +103,25 @@ test("ships the browser engine and removes starter assets", async () => {
     "selected-piece controls should live in the right control panel",
   );
   assert.match(page, /const undoLastTurn =/);
-  assert.match(page, /悔棋重走/);
+  assert.match(page, /const redoLastTurn =/);
+  assert.match(page, /disabled=\{!canRedo\}/);
+  assert.match(page, /className="history-icon" aria-hidden="true">↶/);
+  assert.match(page, /className="history-icon" aria-hidden="true">↷/);
+  assert.match(page, /悔棋/);
+  assert.match(page, /前进/);
   assert.match(page, /重摆开局/);
   assert.match(page, /startingPositionRef/);
   assert.match(page, /activeSearchFenRef/);
   assert.match(page, /放回棋子库/);
+  assert.match(page, /className="tray-return-target"/);
+  assert.match(page, /点这里放回已选棋子/);
+  assert.match(page, /returnPieceToTray\(selectedSquare\)/);
+  assert.match(css, /\.tray-return-target\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?inset:\s*0/);
+  assert.match(page, /control-panel \$\{phase\}/);
+  assert.match(page, /className="setup-config"/);
+  assert.match(css, /\.control-panel\.setup\s*\{[\s\S]*?order:\s*1/);
+  assert.match(css, /\.control-panel\.playing,[\s\S]*?\.control-panel\.over\s*\{[\s\S]*?order:\s*3/);
+  assert.match(css, /\.control-panel\.setup \.position-dashboard\s*\{[\s\S]*?order:\s*4/);
   assert.match(page, /application\/board-square/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });

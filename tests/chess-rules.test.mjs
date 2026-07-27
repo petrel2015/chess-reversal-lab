@@ -54,12 +54,20 @@ test("undoing a turn removes the AI reply and the latest human move", () => {
   chess.move("e4");
   chess.move("e5");
 
+  const removed = [];
   let undone;
   do {
     undone = chess.undo();
+    if (undone) removed.unshift(undone);
   } while (undone && undone.color !== "w");
 
   assert.equal(chess.history().length, 0);
   assert.equal(chess.turn(), "w");
   assert.equal(chess.get("e2")?.type, "p");
+
+  removed.forEach((move) => {
+    chess.move({ from: move.from, to: move.to, promotion: move.promotion });
+  });
+  assert.deepEqual(chess.history(), ["e4", "e5"]);
+  assert.equal(chess.turn(), "w");
 });

@@ -146,6 +146,7 @@ export default function Home() {
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
   const [moves, setMoves] = useState<Move[]>([]);
+  const [redoTurns, setRedoTurns] = useState<Move[][]>([]);
   const [message, setMessage] = useState("已加载标准开局，可直接开始或继续调整");
   const [engineState, setEngineState] = useState<EngineState>("loading");
   const [evaluation, setEvaluation] = useState("等待局面");
@@ -192,6 +193,7 @@ export default function Home() {
   const humanColor = winnerColor === "w" ? "b" : "w";
   const currentTurn = phase === "setup" ? turn : chessRef.current?.turn() ?? turn;
   const canUndo = moves.some((move) => move.color === humanColor);
+  const canRedo = redoTurns.length > 0;
   const winChances = useMemo(() => {
     const chess = chessRef.current;
     if (phase === "over" && chess?.isCheckmate()) {
@@ -311,6 +313,7 @@ export default function Home() {
             to: uci.slice(2, 4),
             promotion: uci[4] || "q",
           });
+          setRedoTurns([]);
           setBoard(chessToBoard(chess));
           setLastMove({ from: move.from, to: move.to });
           setMoves((current) => [...current, move]);
@@ -430,6 +433,7 @@ export default function Home() {
     }
     try {
       const move = chess.move({ from: selectedSquare, to: square, promotion: "q" });
+      setRedoTurns([]);
       setBoard(chessToBoard(chess));
       setLastMove({ from: move.from, to: move.to });
       setMoves((current) => [...current, move]);
@@ -460,6 +464,7 @@ export default function Home() {
       chessRef.current = chess;
       activeSearchFenRef.current = null;
       setMoves([]);
+      setRedoTurns([]);
       setLastMove(null);
       setSelectedPiece(null);
       setSelectedSquare(null);
@@ -487,6 +492,7 @@ export default function Home() {
     setBoard({});
     setPhase("setup");
     setMoves([]);
+    setRedoTurns([]);
     setLastMove(null);
     setSelectedPiece(null);
     setSelectedSquare(null);
@@ -512,6 +518,7 @@ export default function Home() {
     startingPositionRef.current = null;
     setPhase("setup");
     setMoves([]);
+    setRedoTurns([]);
     setLastMove(null);
     setSelectedPiece(null);
     setSelectedSquare(null);
@@ -529,15 +536,20 @@ export default function Home() {
 
     workerRef.current?.postMessage("stop");
     activeSearchFenRef.current = null;
+    const undoneMoves: Move[] = [];
     let undone: Move | null = null;
     do {
       undone = chess.undo();
+      if (undone) undoneMoves.unshift(undone);
     } while (undone && undone.color !== humanColor);
 
     const history = chess.history({ verbose: true }) as Move[];
     const previous = history.at(-1);
     setBoard(chessToBoard(chess));
     setMoves(history);
+    if (undoneMoves.length > 0) {
+      setRedoTurns((current) => [...current, undoneMoves]);
+    }
     setLastMove(previous ? { from: previous.from, to: previous.to } : null);
     setSelectedSquare(null);
     setPhase("playing");
@@ -545,6 +557,52 @@ export default function Home() {
     setEvaluation("等待重新评估");
     if (engineState !== "error") setEngineState("ready");
     setMessage("已悔棋，轮到你重新落子");
+  };
+
+  const redoLastTurn = () => {
+    const chess = chessRef.current;
+    const redoTurn = redoTurns.at(-1);
+    if (!chess || !redoTurn) {
+      setMessage("已经恢复到最新一步");
+      return;
+    }
+
+    workerRef.current?.postMessage("stop");
+    activeSearchFenRef.current = null;
+    let replayed = 0;
+    try {
+      redoTurn.forEach((move) => {
+        chess.move({ from: move.from, to: move.to, promotion: move.promotion });
+        replayed += 1;
+      });
+    } catch {
+      while (replayed > 0) {
+        chess.undo();
+        replayed -= 1;
+      }
+      setMessage("前进记录无法恢复，请重新落子");
+      return;
+    }
+
+    const history = chess.history({ verbose: true }) as Move[];
+    const latest = history.at(-1);
+    const needsAiReply = !chess.isGameOver() && chess.turn() === winnerColor;
+    setRedoTurns(needsAiReply ? [] : redoTurns.slice(0, -1));
+    setBoard(chessToBoard(chess));
+    setMoves(history);
+    setLastMove(latest ? { from: latest.from, to: latest.to } : null);
+    setSelectedSquare(null);
+    setPhase(chess.isGameOver() ? "over" : "playing");
+    setEngineScoreWhite(null);
+    setEvaluation("等待重新评估");
+    if (engineState !== "error") setEngineState("ready");
+    setMessage(
+      chess.isGameOver()
+        ? describeEnding(chess)
+        : needsAiReply
+          ? "已前进，AI 将重新回应"
+          : "已恢复被撤销的回合",
+    );
   };
 
   const loadStandardPosition = () => {
@@ -557,6 +615,7 @@ export default function Home() {
     setTurn("w");
     setPhase("setup");
     setMoves([]);
+    setRedoTurns([]);
     setLastMove(null);
     setSelectedPiece(null);
     setSelectedSquare(null);
@@ -603,11 +662,35 @@ export default function Home() {
           returnPieceToTray(source);
         }}
       >
+        {selectedBoardPiece && phase === "setup" && (
+          <button
+            type="button"
+            className="tray-return-target"
+            onClick={() => {
+              if (selectedBoardPiece.color !== color) {
+                setMessage(`请将${selectedBoardPiece.color === "w" ? "白" : "黑"}棋放回对应颜色的棋子库`);
+                return;
+              }
+              returnPieceToTray(selectedSquare);
+            }}
+            aria-label={
+              acceptingReturn
+                ? `将已选中的${selectedBoardPiece.color === "w" ? "白" : "黑"}${pieceNames[selectedBoardPiece.type]}放回棋子库`
+                : `此处是${color === "w" ? "白方" : "黑方"}棋子库，已选棋子不能放在这里`
+            }
+          />
+        )}
         <div className="inline-tray-label">
           <span className={`color-dot ${color}`} />
           <span>
             <strong>{color === "w" ? "白方棋子库" : "黑方棋子库"}</strong>
-            <small>点按或拖动</small>
+            <small>
+              {selectedBoardPiece
+                ? acceptingReturn
+                  ? "点这里放回已选棋子"
+                  : "已选棋子属于另一方"
+                : "点按或拖动"}
+            </small>
           </span>
         </div>
         <div className="piece-grid">
@@ -788,15 +871,22 @@ export default function Home() {
           {phase !== "setup" && (
             <div className="board-actions">
               <div className="play-actions">
-                <button className="undo-button" disabled={!canUndo} onClick={undoLastTurn}>悔棋重走</button>
+                <button className="history-button undo-button" disabled={!canUndo} onClick={undoLastTurn}>
+                  <span className="history-icon" aria-hidden="true">↶</span>
+                  <span>悔棋</span>
+                </button>
+                <button className="history-button redo-button" disabled={!canRedo} onClick={redoLastTurn}>
+                  <span className="history-icon" aria-hidden="true">↷</span>
+                  <span>前进</span>
+                </button>
                 <button className="ghost-button" onClick={editAgain}>重摆开局</button>
               </div>
-              <span>悔棋会撤销 AI 回应和你的上一手 · 重摆会恢复开局摆法</span>
+              <span>悔棋按完整回合撤销 · 前进恢复刚撤销的回合</span>
             </div>
           )}
         </div>
 
-        <aside className="control-panel">
+        <aside className={`control-panel ${phase}`}>
           <div className="control-heading">
             <span className="tiny-label">MATCH CONFIGURATION</span>
             <h2>{phase === "setup" ? "对局设置" : "局面状态"}</h2>
@@ -882,7 +972,7 @@ export default function Home() {
           </section>
 
           {phase === "setup" ? (
-            <>
+            <div className="setup-config">
               <fieldset>
                 <legend>希望哪方获胜？</legend>
                 <div className="segmented">
@@ -944,9 +1034,9 @@ export default function Home() {
               >
                 开始推演 <span>→</span>
               </button>
-            </>
+            </div>
           ) : (
-            <>
+            <div className="play-status">
               <div className="evaluation-card">
                 <span className="tiny-label">ENGINE EVALUATION</span>
                 <strong>{evaluation}</strong>
@@ -973,7 +1063,7 @@ export default function Home() {
                 )}
               </div>
               <button className="start-button secondary" onClick={editAgain}>重摆开局 <span>↗</span></button>
-            </>
+            </div>
           )}
         </aside>
       </section>
