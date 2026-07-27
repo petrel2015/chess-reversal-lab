@@ -90,6 +90,15 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(css, /\.board-preset-bar \.setup-presets > button\s*\{[\s\S]*?height:\s*42px/);
   assert.match(page, /双方子力与胜率/);
   assert.match(page, /Stockfish 局面估算/);
+  assert.match(page, /子力与胜算/);
+  assert.ok(
+    page.indexOf('className="control-panel"') < page.indexOf('className="position-dashboard"'),
+    "material and win-chance dashboard should live in the right control panel",
+  );
+  assert.ok(
+    page.indexOf('className="control-panel"') < page.indexOf('className="selection-toolbar"'),
+    "selected-piece controls should live in the right control panel",
+  );
   assert.match(page, /const undoLastTurn =/);
   assert.match(page, /悔棋重走/);
   assert.match(page, /重摆开局/);

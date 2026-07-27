@@ -774,9 +774,56 @@ export default function Home() {
 
           {phase === "setup" && renderPieceTray(bottomTrayColor, "bottom")}
 
+          {phase !== "setup" && (
+            <div className="board-actions">
+              <div className="play-actions">
+                <button className="undo-button" disabled={!canUndo} onClick={undoLastTurn}>悔棋重走</button>
+                <button className="ghost-button" onClick={editAgain}>重摆开局</button>
+              </div>
+              <span>悔棋会撤销 AI 回应和你的上一手 · 重摆会恢复开局摆法</span>
+            </div>
+          )}
+        </div>
+
+        <aside className="control-panel">
+          <div className="control-heading">
+            <span className="tiny-label">MATCH CONFIGURATION</span>
+            <h2>{phase === "setup" ? "对局设置" : "局面状态"}</h2>
+          </div>
+
+          {phase === "setup" && (
+            selectedSquare && board[selectedSquare] ? (
+              <div className="selection-toolbar" aria-live="polite">
+                <span className="selection-piece">
+                  <PieceArt piece={board[selectedSquare]} className="selection-piece-art" />
+                </span>
+                <div>
+                  <strong>已选中 {selectedSquare}</strong>
+                  <small>点另一个格子移动；有棋子时会交换位置</small>
+                </div>
+                <button
+                  className="cancel-button"
+                  onClick={() => {
+                    setSelectedSquare(null);
+                    setMessage("已取消选择，可继续摆棋");
+                  }}
+                  aria-label="取消选择"
+                >
+                  ×
+                </button>
+                <button className="return-button" onClick={() => returnPieceToTray(selectedSquare)}>放回棋子库</button>
+              </div>
+            ) : (
+              <div className="edit-hint-card">
+                <strong>摆棋提示</strong>
+                <small>棋子可自由挪动或放回棋子库，手机直接点按即可。</small>
+              </div>
+            )
+          )}
+
           <section className="position-dashboard" aria-label="双方子力与胜率">
             <div className="dashboard-heading">
-              <strong>局面仪表</strong>
+              <strong>子力与胜算</strong>
               <small>{chanceSource}</small>
             </div>
             <div className="material-list">
@@ -820,48 +867,6 @@ export default function Home() {
               <small className="chance-note">胜率为局面估算，不代表理论必胜；和棋可能性折算在双方数值中。</small>
             </div>
           </section>
-
-          <div className="board-actions">
-            {phase === "setup" ? (
-              selectedSquare && board[selectedSquare] ? (
-                <div className="selection-toolbar" aria-live="polite">
-                  <span className="selection-piece">
-                    <PieceArt piece={board[selectedSquare]} className="selection-piece-art" />
-                  </span>
-                  <div>
-                    <strong>已选中 {selectedSquare}</strong>
-                    <small>点另一个格子移动；有棋子时会交换位置</small>
-                  </div>
-                  <button className="return-button" onClick={() => returnPieceToTray(selectedSquare)}>放回棋子库</button>
-                  <button
-                    className="cancel-button"
-                    onClick={() => {
-                      setSelectedSquare(null);
-                      setMessage("已取消选择，可继续摆棋");
-                    }}
-                    aria-label="取消选择"
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <span className="edit-hint">摆棋阶段可自由挪子，不按正式走法限制 · 手机直接点按</span>
-              )
-            ) : (
-              <div className="play-actions">
-                <button className="undo-button" disabled={!canUndo} onClick={undoLastTurn}>悔棋重走</button>
-                <button className="ghost-button" onClick={editAgain}>重摆开局</button>
-              </div>
-            )}
-            {phase !== "setup" && <span>悔棋会撤销 AI 回应和你的上一手 · 重摆会恢复开局摆法</span>}
-          </div>
-        </div>
-
-        <aside className="control-panel">
-          <div className="control-heading">
-            <span className="tiny-label">MATCH CONFIGURATION</span>
-            <h2>{phase === "setup" ? "对局设置" : "局面状态"}</h2>
-          </div>
 
           {phase === "setup" ? (
             <>

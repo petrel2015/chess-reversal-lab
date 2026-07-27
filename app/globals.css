@@ -610,9 +610,9 @@ button {
 .dark .file-label { color: rgba(237, 239, 220, 0.58); }
 
 .position-dashboard {
-  width: min(100%, 610px);
-  margin: 14px auto 0;
-  padding: 14px;
+  width: 100%;
+  margin: 18px 0 0;
+  padding: 13px;
   border: 1px solid #34382f;
   border-radius: 10px;
   background: linear-gradient(145deg, rgba(35, 39, 32, 0.94), rgba(19, 21, 18, 0.94));
@@ -647,9 +647,10 @@ button {
 }
 
 .material-side {
-  min-height: 37px;
-  justify-content: space-between;
-  gap: 12px;
+  min-height: 58px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   padding: 5px 8px;
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.025);
@@ -670,10 +671,11 @@ button {
 }
 
 .material-pieces {
+  width: 100%;
   min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 4px;
   flex-wrap: wrap;
 }
@@ -847,12 +849,13 @@ button {
 
 .selection-toolbar {
   width: 100%;
-  min-height: 58px;
+  min-height: 104px;
+  margin-top: 18px;
   display: grid;
-  grid-template-columns: 42px 1fr auto 34px;
+  grid-template-columns: 42px minmax(0, 1fr) 34px;
   align-items: center;
   gap: 10px;
-  padding: 8px 9px;
+  padding: 9px;
   border: 1px solid rgba(201, 240, 82, 0.4);
   border-radius: 9px;
   background: rgba(201, 240, 82, 0.075);
@@ -896,6 +899,8 @@ button {
 }
 
 .return-button {
+  grid-column: 1 / -1;
+  width: 100%;
   min-height: 38px;
   padding: 0 12px;
   border-radius: 7px;
@@ -918,6 +923,30 @@ button {
 .return-button:hover,
 .cancel-button:hover {
   filter: brightness(1.08);
+}
+
+.edit-hint-card {
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px solid #30332d;
+  border-radius: 8px;
+  background: #1a1c18;
+}
+
+.edit-hint-card strong,
+.edit-hint-card small {
+  display: block;
+}
+
+.edit-hint-card strong {
+  font-size: 10px;
+}
+
+.edit-hint-card small {
+  margin-top: 4px;
+  color: #73776c;
+  font-size: 8px;
+  line-height: 1.55;
 }
 
 .ghost-button {
@@ -1299,10 +1328,6 @@ footer {
   .position-dashboard {
     padding: 12px 10px;
   }
-  .material-side {
-    align-items: flex-start;
-    gap: 7px;
-  }
   .material-piece-art {
     width: 19px;
     height: 19px;
@@ -1343,7 +1368,7 @@ footer {
     margin-top: 10px;
   }
   .selection-toolbar {
-    grid-template-columns: 38px 1fr auto 34px;
+    grid-template-columns: 38px minmax(0, 1fr) 34px;
     gap: 7px;
     padding: 7px;
   }
