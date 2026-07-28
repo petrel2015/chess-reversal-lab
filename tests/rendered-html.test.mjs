@@ -20,7 +20,14 @@ test("renders the position lab shell", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>逆转棋局｜自定义残局推演<\/title>/);
+  assert.match(html, /<title>逆转棋局 · AI 国际象棋推演<\/title>/);
+  assert.match(html, /<meta name="application-name" content="逆转棋局"\/>/);
+  assert.match(html, /<meta name="apple-mobile-web-app-capable" content="yes"\/>/);
+  assert.match(html, /<meta name="apple-mobile-web-app-title" content="逆转棋局"\/>/);
+  assert.match(html, /<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"\/>/);
+  assert.match(html, /<meta name="theme-color" content="#0c0e0c"\/>/);
+  assert.match(html, /<link rel="manifest" href="[^"]*site\.webmanifest"\/>/);
+  assert.match(html, /<link rel="apple-touch-icon" href="[^"]*apple-touch-icon\.png" sizes="180x180" type="image\/png"\/>/);
   assert.match(html, /摆下残局/);
   assert.match(html, /Stockfish 17\.1/);
   assert.match(html, /已加载标准开局，可直接开始或继续调整/);
@@ -28,6 +35,42 @@ test("renders the position lab shell", async () => {
   assert.match(html, /aria-label="a8 黑车"/);
   assert.match(html, /aria-label="e1 白王"/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/);
+});
+
+test("ships installable iPhone and PWA metadata with correctly sized icons", async () => {
+  const manifest = JSON.parse(
+    await readFile(new URL("../public/site.webmanifest", import.meta.url), "utf8"),
+  );
+
+  assert.equal(manifest.name, "逆转棋局 · AI 残局推演");
+  assert.equal(manifest.short_name, "逆转棋局");
+  assert.equal(manifest.id, "./");
+  assert.equal(manifest.start_url, "./");
+  assert.equal(manifest.scope, "./");
+  assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.background_color, "#0c0e0c");
+  assert.equal(manifest.theme_color, "#0c0e0c");
+  assert.deepEqual(
+    manifest.icons.map(({ src, sizes, purpose }) => ({ src, sizes, purpose })),
+    [
+      { src: "icon-192.png", sizes: "192x192", purpose: "any maskable" },
+      { src: "icon-512.png", sizes: "512x512", purpose: "any maskable" },
+    ],
+  );
+
+  const pngSize = async (relativePath) => {
+    const bytes = await readFile(new URL(relativePath, import.meta.url));
+    assert.ok(bytes.length > 10_000, `${relativePath} should contain a detailed icon`);
+    assert.equal(bytes.subarray(1, 4).toString("ascii"), "PNG");
+    return {
+      width: bytes.readUInt32BE(16),
+      height: bytes.readUInt32BE(20),
+    };
+  };
+
+  assert.deepEqual(await pngSize("../public/apple-touch-icon.png"), { width: 180, height: 180 });
+  assert.deepEqual(await pngSize("../public/icon-192.png"), { width: 192, height: 192 });
+  assert.deepEqual(await pngSize("../public/icon-512.png"), { width: 512, height: 512 });
 });
 
 test("ships the browser engine and removes starter assets", async () => {
