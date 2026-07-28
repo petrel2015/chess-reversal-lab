@@ -71,3 +71,21 @@ test("undoing a turn removes the AI reply and the latest human move", () => {
   assert.deepEqual(chess.history(), ["e4", "e5"]);
   assert.equal(chess.turn(), "w");
 });
+
+test("move review reconstructs an earlier board without changing the live game", () => {
+  const live = new Chess();
+  live.move("e4");
+  live.move("e5");
+  const history = live.history({ verbose: true });
+
+  const review = new Chess();
+  history.slice(0, 1).forEach((move) => {
+    review.move({ from: move.from, to: move.to, promotion: move.promotion });
+  });
+
+  assert.deepEqual(review.history(), ["e4"]);
+  assert.equal(review.get("e4")?.type, "p");
+  assert.equal(review.get("e7")?.type, "p");
+  assert.deepEqual(live.history(), ["e4", "e5"]);
+  assert.equal(live.get("e5")?.type, "p");
+});

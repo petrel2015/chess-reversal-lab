@@ -824,8 +824,23 @@ button {
 
 .play-actions {
   display: flex;
+  align-items: flex-end;
   gap: 8px;
   flex: 0 0 auto;
+}
+
+.history-action-group > small {
+  display: block;
+  margin: 0 0 4px 2px;
+  color: #62665c;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+}
+
+.history-action-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
 }
 
 .history-button {
@@ -853,6 +868,12 @@ button {
   color: #c3c6bc;
 }
 
+.review-button {
+  border: 1px solid #3c4138;
+  background: transparent;
+  color: #aeb2a7;
+}
+
 .history-button:hover:not(:disabled) {
   background: var(--acid);
   color: var(--acid-dark);
@@ -866,6 +887,10 @@ button {
 
 .history-icon {
   font: 800 18px/1 var(--font-space), sans-serif;
+}
+
+.history-icon.compact {
+  font-size: 14px;
 }
 
 .standard-setup-button {
@@ -1433,11 +1458,15 @@ footer {
   .play-actions {
     width: 100%;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .history-action-row > button,
   .play-actions > button {
     min-width: 0;
     min-height: 42px;
+  }
+  .play-actions > .ghost-button {
+    grid-column: 1 / -1;
   }
   .selection-toolbar {
     grid-template-columns: 38px minmax(0, 1fr) 34px;

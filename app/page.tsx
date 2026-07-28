@@ -147,6 +147,7 @@ export default function Home() {
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
   const [moves, setMoves] = useState<Move[]>([]);
   const [redoTurns, setRedoTurns] = useState<Move[][]>([]);
+  const [reviewPly, setReviewPly] = useState<number | null>(null);
   const [message, setMessage] = useState("已加载标准开局，可直接开始或继续调整");
   const [engineState, setEngineState] = useState<EngineState>("loading");
   const [evaluation, setEvaluation] = useState("等待局面");
@@ -160,6 +161,29 @@ export default function Home() {
   const pendingScoreRef = useRef<EngineScore>({});
   const startingPositionRef = useRef<StartingPosition | null>(null);
 
+  const displayBoard = useMemo(() => {
+    if (reviewPly === null || phase === "setup") return board;
+    const starting = startingPositionRef.current;
+    if (!starting) return board;
+    try {
+      const reviewChess = new Chess(
+        boardToFen(starting.board, starting.turn, starting.isStandard ? "KQkq" : "-"),
+      );
+      moves.slice(0, reviewPly).forEach((move) => {
+        reviewChess.move({ from: move.from, to: move.to, promotion: move.promotion });
+      });
+      return chessToBoard(reviewChess);
+    } catch {
+      return board;
+    }
+  }, [board, moves, phase, reviewPly]);
+  const displayLastMove =
+    reviewPly === null
+      ? lastMove
+      : reviewPly > 0
+        ? { from: moves[reviewPly - 1].from, to: moves[reviewPly - 1].to }
+        : null;
+
   const counts = useMemo(() => {
     const result: Record<Color, Record<PieceSymbol, number>> = {
       w: { k: 0, q: 0, r: 0, b: 0, n: 0, p: 0 },
@@ -168,17 +192,26 @@ export default function Home() {
     Object.values(board).forEach((p) => (result[p.color][p.type] += 1));
     return result;
   }, [board]);
+  const dashboardCounts = useMemo(() => {
+    if (reviewPly === null) return counts;
+    const result: Record<Color, Record<PieceSymbol, number>> = {
+      w: { k: 0, q: 0, r: 0, b: 0, n: 0, p: 0 },
+      b: { k: 0, q: 0, r: 0, b: 0, n: 0, p: 0 },
+    };
+    Object.values(displayBoard).forEach((piece) => (result[piece.color][piece.type] += 1));
+    return result;
+  }, [counts, displayBoard, reviewPly]);
 
   const setupError = useMemo(() => validatePosition(board, turn), [board, turn]);
   const materialTotals = useMemo(() => {
     const score: Record<Color, number> = { w: 0, b: 0 };
     (["w", "b"] as Color[]).forEach((color) => {
       pieceOrder.forEach((type) => {
-        score[color] += counts[color][type] * pieceValue[type];
+        score[color] += dashboardCounts[color][type] * pieceValue[type];
       });
     });
     return score;
-  }, [counts]);
+  }, [dashboardCounts]);
   const materialDelta = useMemo(() => {
     const whiteLead = materialTotals.w - materialTotals.b;
     return {
@@ -194,29 +227,33 @@ export default function Home() {
   const currentTurn = phase === "setup" ? turn : chessRef.current?.turn() ?? turn;
   const canUndo = moves.some((move) => move.color === humanColor);
   const canRedo = redoTurns.length > 0;
+  const canReviewBack = moves.length > 0 && (reviewPly ?? moves.length) > 0;
+  const canReviewForward = reviewPly !== null;
   const winChances = useMemo(() => {
     const chess = chessRef.current;
-    if (phase === "over" && chess?.isCheckmate()) {
+    if (reviewPly === null && phase === "over" && chess?.isCheckmate()) {
       return chess.turn() === "w" ? { w: 0, b: 100 } : { w: 100, b: 0 };
     }
-    if (phase === "over" && chess?.isDraw()) return { w: 50, b: 50 };
+    if (reviewPly === null && phase === "over" && chess?.isDraw()) return { w: 50, b: 50 };
 
-    if (phase !== "setup" && engineScoreWhite?.mate !== undefined) {
+    if (reviewPly === null && phase !== "setup" && engineScoreWhite?.mate !== undefined) {
       if (engineScoreWhite.mate > 0) return { w: 99, b: 1 };
       if (engineScoreWhite.mate < 0) return { w: 1, b: 99 };
       return { w: 50, b: 50 };
     }
 
     const centipawns =
-      phase !== "setup" && engineScoreWhite?.cp !== undefined
+      reviewPly === null && phase !== "setup" && engineScoreWhite?.cp !== undefined
         ? engineScoreWhite.cp
         : materialDelta.w * 100;
     const rawWhite = 100 / (1 + Math.exp(-centipawns / 240));
     const white = Math.max(1, Math.min(99, Math.round(rawWhite)));
     return { w: white, b: 100 - white };
-  }, [engineScoreWhite, materialDelta, moves, phase]);
+  }, [engineScoreWhite, materialDelta, moves, phase, reviewPly]);
   const chanceSource =
-    phase === "over"
+    reviewPly !== null
+      ? `回看第 ${reviewPly}/${moves.length} 步`
+      : phase === "over"
       ? "对局结果"
       : phase !== "setup" && engineScoreWhite
         ? "Stockfish 局面估算"
@@ -314,6 +351,7 @@ export default function Home() {
             promotion: uci[4] || "q",
           });
           setRedoTurns([]);
+          setReviewPly(null);
           setBoard(chessToBoard(chess));
           setLastMove({ from: move.from, to: move.to });
           setMoves((current) => [...current, move]);
@@ -412,6 +450,11 @@ export default function Home() {
       return;
     }
 
+    if (reviewPly !== null) {
+      setMessage(`正在回看第 ${reviewPly}/${moves.length} 步，请用“下一步”回到当前局面`);
+      return;
+    }
+
     const chess = chessRef.current;
     if (!chess || phase !== "playing" || chess.turn() !== humanColor || engineState === "thinking") return;
     if (!selectedSquare) {
@@ -434,6 +477,7 @@ export default function Home() {
     try {
       const move = chess.move({ from: selectedSquare, to: square, promotion: "q" });
       setRedoTurns([]);
+      setReviewPly(null);
       setBoard(chessToBoard(chess));
       setLastMove({ from: move.from, to: move.to });
       setMoves((current) => [...current, move]);
@@ -465,6 +509,7 @@ export default function Home() {
       activeSearchFenRef.current = null;
       setMoves([]);
       setRedoTurns([]);
+      setReviewPly(null);
       setLastMove(null);
       setSelectedPiece(null);
       setSelectedSquare(null);
@@ -493,6 +538,7 @@ export default function Home() {
     setPhase("setup");
     setMoves([]);
     setRedoTurns([]);
+    setReviewPly(null);
     setLastMove(null);
     setSelectedPiece(null);
     setSelectedSquare(null);
@@ -519,6 +565,7 @@ export default function Home() {
     setPhase("setup");
     setMoves([]);
     setRedoTurns([]);
+    setReviewPly(null);
     setLastMove(null);
     setSelectedPiece(null);
     setSelectedSquare(null);
@@ -547,6 +594,7 @@ export default function Home() {
     const previous = history.at(-1);
     setBoard(chessToBoard(chess));
     setMoves(history);
+    setReviewPly(null);
     if (undoneMoves.length > 0) {
       setRedoTurns((current) => [...current, undoneMoves]);
     }
@@ -588,6 +636,7 @@ export default function Home() {
     const latest = history.at(-1);
     const needsAiReply = !chess.isGameOver() && chess.turn() === winnerColor;
     setRedoTurns(needsAiReply ? [] : redoTurns.slice(0, -1));
+    setReviewPly(null);
     setBoard(chessToBoard(chess));
     setMoves(history);
     setLastMove(latest ? { from: latest.from, to: latest.to } : null);
@@ -605,6 +654,39 @@ export default function Home() {
     );
   };
 
+  const reviewPreviousMove = () => {
+    const currentPly = reviewPly ?? moves.length;
+    if (currentPly <= 0) {
+      setMessage("已经回看到本局起始位置");
+      return;
+    }
+    const previousPly = currentPly - 1;
+    setReviewPly(previousPly);
+    setSelectedSquare(null);
+    setMessage(
+      previousPly === 0
+        ? `正在回看起始位置 · 共 ${moves.length} 步`
+        : `正在回看第 ${previousPly}/${moves.length} 步 · ${moveLabel(moves[previousPly - 1])}`,
+    );
+  };
+
+  const reviewNextMove = () => {
+    if (reviewPly === null) {
+      setMessage("已经位于最新局面");
+      return;
+    }
+    const nextPly = reviewPly + 1;
+    setSelectedSquare(null);
+    if (nextPly >= moves.length) {
+      setReviewPly(null);
+      const latest = moves.at(-1);
+      setMessage(latest ? `已回到当前局面 · 最近一步 ${moveLabel(latest)}` : "已回到当前局面");
+      return;
+    }
+    setReviewPly(nextPly);
+    setMessage(`正在回看第 ${nextPly}/${moves.length} 步 · ${moveLabel(moves[nextPly - 1])}`);
+  };
+
   const loadStandardPosition = () => {
     workerRef.current?.postMessage("stop");
     chessRef.current = null;
@@ -616,6 +698,7 @@ export default function Home() {
     setPhase("setup");
     setMoves([]);
     setRedoTurns([]);
+    setReviewPly(null);
     setLastMove(null);
     setSelectedPiece(null);
     setSelectedSquare(null);
@@ -823,10 +906,10 @@ export default function Home() {
               {shownRanks.flatMap((rank, rankIndex) =>
                 shownFiles.map((file, fileIndex) => {
                   const square = `${file}${rank}` as Square;
-                  const piece = board[square];
+                  const piece = displayBoard[square];
                   const dark = (files.indexOf(file) + ranks.indexOf(rank)) % 2 === 1;
-                  const selected = selectedSquare === square;
-                  const moved = lastMove?.from === square || lastMove?.to === square;
+                  const selected = reviewPly === null && selectedSquare === square;
+                  const moved = displayLastMove?.from === square || displayLastMove?.to === square;
                   const legalTarget = legalTargets.has(square);
                   return (
                     <button
@@ -835,7 +918,7 @@ export default function Home() {
                       role="gridcell"
                       data-square={square}
                       onClick={() => handleSquareClick(square)}
-                      draggable={phase === "setup" && Boolean(piece)}
+                      draggable={phase === "setup" && reviewPly === null && Boolean(piece)}
                       onDragStart={(event) => {
                         if (phase === "setup" && piece) {
                           event.dataTransfer.setData("application/board-square", square);
@@ -871,17 +954,35 @@ export default function Home() {
           {phase !== "setup" && (
             <div className="board-actions">
               <div className="play-actions">
-                <button className="history-button undo-button" disabled={!canUndo} onClick={undoLastTurn}>
-                  <span className="history-icon" aria-hidden="true">↶</span>
-                  <span>悔棋</span>
-                </button>
-                <button className="history-button redo-button" disabled={!canRedo} onClick={redoLastTurn}>
-                  <span className="history-icon" aria-hidden="true">↷</span>
-                  <span>前进</span>
-                </button>
+                <div className="history-action-group">
+                  <small>改变棋局</small>
+                  <div className="history-action-row">
+                    <button className="history-button undo-button" disabled={!canUndo} onClick={undoLastTurn}>
+                      <span className="history-icon" aria-hidden="true">↶</span>
+                      <span>悔棋</span>
+                    </button>
+                    <button className="history-button redo-button" disabled={!canRedo} onClick={redoLastTurn}>
+                      <span className="history-icon" aria-hidden="true">↷</span>
+                      <span>恢复</span>
+                    </button>
+                  </div>
+                </div>
+                <div className="history-action-group">
+                  <small>回看棋谱</small>
+                  <div className="history-action-row">
+                    <button className="history-button review-button" disabled={!canReviewBack} onClick={reviewPreviousMove}>
+                      <span className="history-icon compact" aria-hidden="true">←</span>
+                      <span>上一步</span>
+                    </button>
+                    <button className="history-button review-button" disabled={!canReviewForward} onClick={reviewNextMove}>
+                      <span>下一步</span>
+                      <span className="history-icon compact" aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                </div>
                 <button className="ghost-button" onClick={editAgain}>重摆开局</button>
               </div>
-              <span>悔棋按完整回合撤销 · 前进恢复刚撤销的回合</span>
+              <span>{reviewPly === null ? "回看不会改变棋局" : `正在回看 ${reviewPly}/${moves.length} 步`}</span>
             </div>
           )}
         </div>
@@ -939,14 +1040,14 @@ export default function Home() {
                   </div>
                   <div className="material-pieces" aria-label={`${color === "w" ? "白方" : "黑方"}当前棋子`}>
                     {pieceOrder.map((type) => (
-                      counts[color][type] > 0 && (
+                      dashboardCounts[color][type] > 0 && (
                         <span className="material-piece" key={type}>
                           <PieceArt piece={{ color, type }} className="material-piece-art" />
-                          <b>{counts[color][type]}</b>
+                          <b>{dashboardCounts[color][type]}</b>
                         </span>
                       )
                     ))}
-                    {Object.values(counts[color]).every((count) => count === 0) && <em>暂无棋子</em>}
+                    {Object.values(dashboardCounts[color]).every((count) => count === 0) && <em>暂无棋子</em>}
                   </div>
                 </div>
               ))}
