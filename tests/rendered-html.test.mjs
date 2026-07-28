@@ -94,10 +94,9 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /const materialDelta = useMemo/);
   assert.match(page, /b: whiteLead === 0 \? 0 : -whiteLead/);
   assert.match(page, /子力差 \{formatMaterialDelta\(materialDelta\[color\]\)\}/);
-  assert.ok(
-    page.indexOf('className="control-panel"') < page.indexOf('className="position-dashboard"'),
-    "material and win-chance dashboard should live in the right control panel",
-  );
+  assert.match(page, /renderPositionDashboard\("control"\)/);
+  assert.match(page, /renderPositionDashboard\("board"\)/);
+  assert.match(css, /\.board-dashboard\s*\{[\s\S]*?display:\s*none/);
   assert.ok(
     page.indexOf('className="control-panel"') < page.indexOf('className="selection-toolbar"'),
     "selected-piece controls should live in the right control panel",
@@ -130,7 +129,90 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /className="setup-config"/);
   assert.match(css, /\.control-panel\.setup\s*\{[\s\S]*?order:\s*1/);
   assert.match(css, /\.control-panel\.playing,[\s\S]*?\.control-panel\.over\s*\{[\s\S]*?order:\s*3/);
-  assert.match(css, /\.control-panel\.setup \.position-dashboard\s*\{[\s\S]*?order:\s*4/);
+  assert.match(css, /\.control-dashboard\s*\{\s*display:\s*none/);
+  assert.match(css, /\.board-dashboard\s*\{[\s\S]*?display:\s*block/);
   assert.match(page, /application\/board-square/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
+});
+
+test("mobile layout stays within viewport and keeps touch targets usable", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  // Mobile tray/piece grids must shrink instead of pinning a 40px+ min column.
+  const mobileBlock = css.match(/@media \(max-width: 680px\)\s*\{([\s\S]*?)\n\}\n/);
+  assert.ok(mobileBlock, "680px mobile block should exist");
+  const mobile = mobileBlock[1];
+  assert.doesNotMatch(
+    mobile,
+    /\.board-piece-tray \.piece-grid\s*\{[\s\S]*?minmax\(4[0-9]px/,
+    "mobile tray piece-grid must not pin a 40px+ min column",
+  );
+  assert.match(
+    mobile,
+    /\.board-piece-tray \.piece-grid\s*\{[\s\S]*?minmax\(0,\s*1fr\)/,
+    "mobile tray piece-grid must shrink with minmax(0, 1fr)",
+  );
+  assert.match(
+    mobile,
+    /\.piece-grid\s*\{[\s\S]*?minmax\(0,\s*1fr\)/,
+    "mobile piece-grid must shrink with minmax(0, 1fr)",
+  );
+
+  // Horizontal overflow is clamped at the root on mobile.
+  assert.match(mobile, /html, body\s*\{[\s\S]*?overflow-x:\s*hidden/);
+  assert.match(mobile, /\.app-shell\s*\{[\s\S]*?overflow-x:\s*hidden/);
+  assert.match(mobile, /\.app-shell\s*\{[\s\S]*?max-width:\s*100vw/);
+  assert.match(mobile, /\.workspace\s*\{[\s\S]*?overflow-x:\s*hidden/);
+  assert.match(mobile, /\.board-column\s*\{[\s\S]*?overflow-x:\s*hidden/);
+
+  // Compact setup: decorative english labels and hint copy hidden on mobile.
+  assert.match(mobile, /\.eyebrow\s*\{\s*display:\s*none/);
+  assert.match(mobile, /\.control-panel \.tiny-label\s*\{\s*display:\s*none/);
+  assert.match(mobile, /\.setup-config fieldset > p\s*\{\s*display:\s*none/);
+  assert.match(mobile, /\.chance-note\s*\{\s*display:\s*none/);
+  assert.match(mobile, /\.control-panel\.setup \.edit-hint-card\s*\{[\s\S]*?display:\s*none/);
+
+  // Setup order preserved: setup config above board, dashboard moved down; playing keeps board first.
+  assert.match(mobile, /\.control-panel\.setup\s*\{[\s\S]*?order:\s*1/);
+  assert.match(mobile, /\.board-column\s*\{[\s\S]*?order:\s*2/);
+  assert.match(mobile, /\.control-panel\.playing,[\s\S]*?order:\s*3/);
+  assert.match(mobile, /\.turn-options\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2/);
+
+  // Winner + turn still render two clear options each.
+  assert.match(page, /name="winner"[\s\S]*?name="winner"/);
+  assert.match(page, /name="turn"[\s\S]*?name="turn"/);
+
+  // AI think-time range, legality validation, and start button remain present.
+  assert.match(page, /type="range"/);
+  assert.match(page, /`validation \$\{setupError \? "warning" : "ok"\}`/);
+  assert.match(page, /className="start-button"/);
+
+  // Touch target floors (>= 40px) on mobile.
+  assert.match(mobile, /\.segmented label\s*\{[\s\S]*?min-height:\s*4[0-9]px/);
+  assert.match(mobile, /\.turn-options label > span\s*\{[\s\S]*?min-height:\s*4[0-9]px/);
+  assert.match(mobile, /\.history-action-row > button[\s\S]*?min-height:\s*4[0-9]px/);
+  assert.match(mobile, /\.start-button\s*\{[\s\S]*?min-height:\s*4[0-9]px/);
+
+  // 360px-class (390px breakpoint) still clamps and keeps targets >= 40px.
+  const narrowBlock = css.match(/@media \(max-width: 390px\)\s*\{([\s\S]*?)\n\}\n/);
+  assert.ok(narrowBlock, "390px narrow block should exist");
+  const narrow = narrowBlock[1];
+  assert.match(narrow, /\.app-shell\s*\{[\s\S]*?padding/);
+  assert.match(narrow, /\.hero-copy\s*\{\s*display:\s*none/);
+  assert.match(narrow, /\.control-panel\.setup \.control-heading\s*\{\s*display:\s*none/);
+  assert.match(narrow, /\.tray-piece\s*\{[\s\S]*?min-height:\s*4[0-9]px/);
+  assert.match(narrow, /\.segmented label\s*\{[\s\S]*?min-height:\s*4[0-9]px/);
+  assert.match(narrow, /\.start-button\s*\{[\s\S]*?min-height:\s*4[0-9]px/);
+
+  // Desktop layout structure preserved (no accidental clobber of base columns).
+  assert.match(css, /\.workspace\s*\{[\s\S]*?grid-template-columns:\s*minmax\(560px, 1fr\) minmax\(275px, 0\.42fr\)/);
+  assert.match(css, /\.board-piece-tray\s*\{[\s\S]*?grid-template-columns:\s*112px 1fr/);
+  assert.match(css, /\.board-piece-tray \.piece-grid\s*\{[\s\S]*?minmax\(46px, 1fr\)/);
+
+  // Flip button exposes an icon-only mode on the narrowest screens via a labelled span.
+  assert.match(page, /className="flip-label"/);
+  assert.match(narrow, /\.flip-label\s*\{\s*display:\s*none/);
 });
