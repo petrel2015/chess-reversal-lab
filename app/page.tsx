@@ -574,6 +574,30 @@ export default function Home() {
     setMessage(starting ? "已恢复本局开始前的摆法，可重新调整" : "已返回摆棋模式");
   };
 
+  const editFromCurrentPosition = () => {
+    workerRef.current?.postMessage("stop");
+    const currentChess = chessRef.current;
+    const currentBoard = currentChess ? chessToBoard(currentChess) : board;
+    const nextTurn = currentChess?.turn() ?? turn;
+    activeSearchFenRef.current = null;
+    chessRef.current = null;
+    startingPositionRef.current = null;
+    if (engineState !== "error" && engineState !== "loading") setEngineState("ready");
+    setBoard(cloneBoard(currentBoard));
+    setTurn(nextTurn);
+    setPhase("setup");
+    setMoves([]);
+    setRedoTurns([]);
+    setReviewPly(null);
+    setLastMove(null);
+    setSelectedPiece(null);
+    setSelectedSquare(null);
+    setIsStandardSetup(false);
+    setEngineScoreWhite(null);
+    setEvaluation("等待局面");
+    setMessage("已将当前最新局面设为新起点，可继续摆棋");
+  };
+
   const undoLastTurn = () => {
     const chess = chessRef.current;
     if (!chess || !canUndo) {
@@ -1034,7 +1058,12 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
-                <button className="ghost-button" onClick={editAgain}>重摆开局</button>
+                <div className="position-reset-actions compact">
+                  <button className="ghost-button" onClick={editAgain}>重摆开局</button>
+                  <button className="ghost-button current-position-button" onClick={editFromCurrentPosition}>
+                    从当前局面重摆
+                  </button>
+                </div>
               </div>
               <span>{reviewPly === null ? "回看不会改变棋局" : `正在回看 ${reviewPly}/${moves.length} 步`}</span>
             </div>
@@ -1172,7 +1201,12 @@ export default function Home() {
                   </ol>
                 )}
               </div>
-              <button className="start-button secondary" onClick={editAgain}>重摆开局 <span>↗</span></button>
+              <div className="position-reset-actions panel-actions">
+                <button className="start-button secondary" onClick={editAgain}>重摆开局 <span>↗</span></button>
+                <button className="start-button secondary current-position-button" onClick={editFromCurrentPosition}>
+                  从当前局面重摆 <span>↗</span>
+                </button>
+              </div>
             </div>
           )}
         </aside>

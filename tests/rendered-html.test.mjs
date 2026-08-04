@@ -161,6 +161,14 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /下一步/);
   assert.match(page, /回看不会改变棋局/);
   assert.match(page, /重摆开局/);
+  assert.match(page, /const editFromCurrentPosition =/);
+  assert.match(page, /const currentBoard = currentChess \? chessToBoard\(currentChess\) : board/);
+  assert.match(page, /const nextTurn = currentChess\?\.turn\(\) \?\? turn/);
+  assert.match(page, /setBoard\(cloneBoard\(currentBoard\)\)/);
+  assert.match(page, /setTurn\(nextTurn\)/);
+  assert.match(page, /setIsStandardSetup\(false\)/);
+  assert.match(page, /已将当前最新局面设为新起点，可继续摆棋/);
+  assert.equal(page.match(/从当前局面重摆/g)?.length, 2);
   assert.match(page, /startingPositionRef/);
   assert.match(page, /activeSearchFenRef/);
   assert.match(page, /放回棋子库/);
@@ -237,6 +245,7 @@ test("mobile layout stays within viewport and keeps touch targets usable", async
   assert.match(mobile, /\.segmented label\s*\{[\s\S]*?min-height:\s*4[0-9]px/);
   assert.match(mobile, /\.turn-options label > span\s*\{[\s\S]*?min-height:\s*4[0-9]px/);
   assert.match(mobile, /\.history-action-row > button[\s\S]*?min-height:\s*4[0-9]px/);
+  assert.match(mobile, /\.position-reset-actions\.compact \.ghost-button\s*\{[\s\S]*?min-height:\s*4[0-9]px/);
   assert.match(mobile, /\.start-button\s*\{[\s\S]*?min-height:\s*4[0-9]px/);
 
   // 360px-class (390px breakpoint) still clamps and keeps targets >= 40px.

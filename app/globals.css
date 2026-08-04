@@ -836,6 +836,37 @@ button {
   flex: 0 0 auto;
 }
 
+.position-reset-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.position-reset-actions.compact {
+  align-self: flex-end;
+}
+
+.position-reset-actions.compact .ghost-button {
+  min-height: 34px;
+  white-space: nowrap;
+}
+
+.position-reset-actions .current-position-button {
+  border-color: rgba(201, 240, 82, 0.42);
+  color: #c9f052;
+}
+
+.position-reset-actions.panel-actions {
+  margin-top: 18px;
+}
+
+.position-reset-actions.panel-actions .start-button.secondary {
+  margin-top: 0;
+  min-width: 0;
+  padding-inline: 10px;
+  font-size: 10px;
+}
+
 .history-action-group > small {
   display: block;
   margin: 0 0 4px 2px;
@@ -1529,9 +1560,15 @@ footer {
     min-width: 0;
     min-height: 42px;
   }
-  .play-actions > .ghost-button {
+  .play-actions > .position-reset-actions {
     grid-column: 1 / -1;
+    width: 100%;
+  }
+  .position-reset-actions.compact .ghost-button {
+    min-width: 0;
     min-height: 42px;
+    padding-inline: 8px;
+    font-size: 9px;
   }
   .selection-toolbar {
     grid-template-columns: 38px minmax(0, 1fr) 34px;
