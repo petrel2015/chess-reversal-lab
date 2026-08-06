@@ -9,7 +9,6 @@ import {
   validatePosition,
   describeEnding,
   moveLabel,
-  formatMaterialDelta,
   files,
   ranks,
   pieceOrder,
@@ -19,43 +18,14 @@ import {
   type Piece,
   type BoardMap,
 } from "./lib/chess-utils";
+import { useEngine, type EngineOutcome } from "./lib/use-engine";
+import { PieceArt } from "./components/piece-art";
+import { PieceTray } from "./components/piece-tray";
+import { PositionDashboard } from "./components/position-dashboard";
+import { ChessBoard } from "./components/chess-board";
 
 type Phase = "setup" | "playing" | "over";
-type EngineState = "loading" | "ready" | "thinking" | "error";
-type EngineScore = { cp?: number; mate?: number };
 type StartingPosition = { board: BoardMap; turn: Color; isStandard: boolean };
-
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-const pieceImages: Record<Color, Record<PieceSymbol, string>> = {
-  w: {
-    k: `${basePath}/chess-pieces/w-k.png`,
-    q: `${basePath}/chess-pieces/w-q.png`,
-    r: `${basePath}/chess-pieces/w-r.png`,
-    b: `${basePath}/chess-pieces/w-b.png`,
-    n: `${basePath}/chess-pieces/w-n.png`,
-    p: `${basePath}/chess-pieces/w-p.png`,
-  },
-  b: {
-    k: `${basePath}/chess-pieces/b-k.png`,
-    q: `${basePath}/chess-pieces/b-q.png`,
-    r: `${basePath}/chess-pieces/b-r.png`,
-    b: `${basePath}/chess-pieces/b-b.png`,
-    n: `${basePath}/chess-pieces/b-n.png`,
-    p: `${basePath}/chess-pieces/b-p.png`,
-  },
-};
-
-function PieceArt({ piece, className }: { piece: Piece; className: string }) {
-  return (
-    <img
-      alt=""
-      aria-hidden="true"
-      className={className}
-      draggable={false}
-      src={pieceImages[piece.color][piece.type]}
-    />
-  );
-}
 
 export default function Home() {
   const [board, setBoard] = useState<BoardMap>(() => chessToBoard(new Chess()));
@@ -69,17 +39,78 @@ export default function Home() {
   const [redoTurns, setRedoTurns] = useState<Move[][]>([]);
   const [reviewPly, setReviewPly] = useState<number | null>(null);
   const [message, setMessage] = useState("已加载标准开局，可直接开始或继续调整");
-  const [engineState, setEngineState] = useState<EngineState>("loading");
-  const [evaluation, setEvaluation] = useState("等待局面");
   const [moveTime, setMoveTime] = useState(1200);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isStandardSetup, setIsStandardSetup] = useState(true);
-  const [engineScoreWhite, setEngineScoreWhite] = useState<EngineScore | null>(null);
   const chessRef = useRef<Chess | null>(null);
-  const workerRef = useRef<Worker | null>(null);
-  const activeSearchFenRef = useRef<string | null>(null);
-  const pendingScoreRef = useRef<EngineScore>({});
   const startingPositionRef = useRef<StartingPosition | null>(null);
+  const outcomeHandlerRef = useRef<(outcome: EngineOutcome) => void>(() => {});
+
+  const humanColor = winnerColor === "w" ? "b" : "w";
+  const isThinkingTurn =
+    phase === "playing" && chessRef.current?.turn() === winnerColor;
+
+  const dispatchOutcome = useCallback(
+    (outcome: EngineOutcome) => outcomeHandlerRef.current(outcome),
+    [],
+  );
+
+  const {
+    engineState,
+    evaluation,
+    engineScoreWhite,
+    makeEngineMove,
+    setEngineState,
+    setEvaluation,
+    setEngineScoreWhite,
+    stopEngine,
+    updateEvaluation,
+  } = useEngine({
+    winnerColor,
+    humanColor,
+    chessRef,
+    moveTime,
+    isThinkingTurn,
+    board,
+    onOutcome: dispatchOutcome,
+    onMessage: setMessage,
+  });
+
+  const handleEngineOutcome = useCallback(
+    (outcome: EngineOutcome) => {
+      const chess = chessRef.current;
+      if (outcome.kind === "moved") {
+        if (!chess) return;
+        try {
+          const { uci } = outcome;
+          const move = chess.move({
+            from: uci.slice(0, 2),
+            to: uci.slice(2, 4),
+            promotion: uci[4] || "q",
+          });
+          setRedoTurns([]);
+          setReviewPly(null);
+          setBoard(chessToBoard(chess));
+          setLastMove({ from: move.from, to: move.to });
+          setMoves((current) => [...current, move]);
+          if (chess.isGameOver()) {
+            setPhase("over");
+            setMessage(describeEnding(chess));
+          } else {
+            const human = winnerColor === "w" ? "b" : "w";
+            setMessage(`轮到你模拟${human === "w" ? "白方" : "黑方"}落子`);
+          }
+        } catch {
+          setEngineState("error");
+          setMessage("引擎返回了无法执行的棋步");
+        }
+      }
+    },
+    [winnerColor, setEngineState],
+  );
+  useEffect(() => {
+    outcomeHandlerRef.current = handleEngineOutcome;
+  });
 
   const displayBoard = useMemo(() => {
     if (reviewPly === null || phase === "setup") return board;
@@ -143,7 +174,6 @@ export default function Home() {
   const shownRanks = isFlipped ? [...ranks].reverse() : ranks;
   const topTrayColor: Color = isFlipped ? "w" : "b";
   const bottomTrayColor: Color = isFlipped ? "b" : "w";
-  const humanColor = winnerColor === "w" ? "b" : "w";
   const currentTurn = phase === "setup" ? turn : chessRef.current?.turn() ?? turn;
   const canUndo = moves.some((move) => move.color === humanColor);
   const canRedo = redoTurns.length > 0;
@@ -189,123 +219,6 @@ export default function Home() {
         .map((move) => move.to),
     );
   }, [board, humanColor, phase, selectedSquare]);
-
-  const updateEvaluation = useCallback((score: { cp?: number; mate?: number }) => {
-    const whitePerspective = winnerColor === "w" ? 1 : -1;
-    if (score.mate !== undefined) {
-      setEngineScoreWhite({ mate: score.mate * whitePerspective });
-      const favorable = score.mate > 0;
-      setEvaluation(
-        favorable
-          ? `指定方可强制将死 · M${Math.abs(score.mate)}`
-          : `指定方将被强制将死 · M${Math.abs(score.mate)}`,
-      );
-      return;
-    }
-    setEngineScoreWhite({ cp: (score.cp ?? 0) * whitePerspective });
-    const pawns = (score.cp ?? 0) / 100;
-    if (pawns > 2.5) setEvaluation(`指定方明显优势 · +${pawns.toFixed(1)}`);
-    else if (pawns > 0.6) setEvaluation(`指定方稍优 · +${pawns.toFixed(1)}`);
-    else if (pawns < -2.5) setEvaluation(`指定方明显劣势 · ${pawns.toFixed(1)}`);
-    else if (pawns < -0.6) setEvaluation(`指定方稍劣 · ${pawns.toFixed(1)}`);
-    else setEvaluation(`局面接近均势 · ${pawns >= 0 ? "+" : ""}${pawns.toFixed(1)}`);
-  }, [winnerColor]);
-
-  const makeEngineMove = useCallback(() => {
-    const chess = chessRef.current;
-    const worker = workerRef.current;
-    if (!chess || chess.isGameOver() || chess.turn() !== winnerColor) return;
-    if (!worker || engineState === "error") {
-      setMessage("引擎未能载入，请刷新页面重试");
-      return;
-    }
-    activeSearchFenRef.current = chess.fen();
-    pendingScoreRef.current = {};
-    setEngineState("thinking");
-    setSelectedSquare(null);
-    setMessage(`${winnerColor === "w" ? "白方" : "黑方"} AI 正在计算最佳走法…`);
-    worker.postMessage("stop");
-    worker.postMessage(`position fen ${chess.fen()}`);
-    worker.postMessage(`go movetime ${moveTime}`);
-  }, [engineState, moveTime, winnerColor]);
-
-  useEffect(() => {
-    const worker = new Worker(`${basePath}/engine/stockfish.js`);
-    workerRef.current = worker;
-    worker.onmessage = (event) => {
-      const line = String(event.data);
-      if (line === "uciok") {
-        worker.postMessage("setoption name Hash value 32");
-        worker.postMessage("isready");
-      }
-      if (line === "readyok") setEngineState("ready");
-      const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
-      if (scoreMatch) {
-        const value = Number(scoreMatch[2]);
-        pendingScoreRef.current =
-          scoreMatch[1] === "mate" ? { mate: value } : { cp: value };
-      }
-      if (line.startsWith("bestmove ")) {
-        const chess = chessRef.current;
-        if (!chess) {
-          activeSearchFenRef.current = null;
-          setEngineState("ready");
-          return;
-        }
-        const uci = line.split(" ")[1];
-        if (!uci || uci === "(none)") {
-          activeSearchFenRef.current = null;
-          setEngineState("ready");
-          return;
-        }
-        const searchedFen = activeSearchFenRef.current;
-        activeSearchFenRef.current = null;
-        if (!searchedFen || chess.fen() !== searchedFen) {
-          setEngineState("ready");
-          return;
-        }
-        try {
-          const move = chess.move({
-            from: uci.slice(0, 2),
-            to: uci.slice(2, 4),
-            promotion: uci[4] || "q",
-          });
-          setRedoTurns([]);
-          setReviewPly(null);
-          setBoard(chessToBoard(chess));
-          setLastMove({ from: move.from, to: move.to });
-          setMoves((current) => [...current, move]);
-          updateEvaluation(pendingScoreRef.current);
-          setEngineState("ready");
-          if (chess.isGameOver()) {
-            setPhase("over");
-            setMessage(describeEnding(chess));
-          } else {
-            setMessage(`轮到你模拟${humanColor === "w" ? "白方" : "黑方"}落子`);
-          }
-        } catch {
-          setEngineState("error");
-          setMessage("引擎返回了无法执行的棋步");
-        }
-      }
-    };
-    worker.onerror = () => {
-      setEngineState("error");
-      setMessage("Stockfish 载入失败，请刷新页面重试");
-    };
-    worker.postMessage("uci");
-    return () => {
-      worker.postMessage("quit");
-      worker.terminate();
-    };
-  }, [humanColor, updateEvaluation]);
-
-  useEffect(() => {
-    if (phase === "playing" && chessRef.current?.turn() === winnerColor && engineState === "ready") {
-      const timer = window.setTimeout(makeEngineMove, 180);
-      return () => window.clearTimeout(timer);
-    }
-  }, [board, engineState, makeEngineMove, phase, winnerColor]);
 
   const placePiece = (square: Square, piece: Piece) => {
     if (piece.type === "p" && (square[1] === "1" || square[1] === "8")) {
@@ -426,7 +339,7 @@ export default function Home() {
       };
       const chess = new Chess(boardToFen(board, turn, isStandardSetup ? "KQkq" : "-"));
       chessRef.current = chess;
-      activeSearchFenRef.current = null;
+      stopEngine();
       setMoves([]);
       setRedoTurns([]);
       setReviewPly(null);
@@ -449,9 +362,8 @@ export default function Home() {
   };
 
   const reset = () => {
-    workerRef.current?.postMessage("stop");
+    stopEngine();
     chessRef.current = null;
-    activeSearchFenRef.current = null;
     startingPositionRef.current = null;
     if (engineState !== "error" && engineState !== "loading") setEngineState("ready");
     setBoard({});
@@ -469,9 +381,8 @@ export default function Home() {
   };
 
   const editAgain = () => {
-    workerRef.current?.postMessage("stop");
+    stopEngine();
     chessRef.current = null;
-    activeSearchFenRef.current = null;
     if (engineState !== "error" && engineState !== "loading") setEngineState("ready");
     const starting = startingPositionRef.current;
     if (starting) {
@@ -495,11 +406,10 @@ export default function Home() {
   };
 
   const editFromCurrentPosition = () => {
-    workerRef.current?.postMessage("stop");
+    stopEngine();
     const currentChess = chessRef.current;
     const currentBoard = currentChess ? chessToBoard(currentChess) : board;
     const nextTurn = currentChess?.turn() ?? turn;
-    activeSearchFenRef.current = null;
     chessRef.current = null;
     startingPositionRef.current = null;
     if (engineState !== "error" && engineState !== "loading") setEngineState("ready");
@@ -525,8 +435,7 @@ export default function Home() {
       return;
     }
 
-    workerRef.current?.postMessage("stop");
-    activeSearchFenRef.current = null;
+    stopEngine();
     const undoneMoves: Move[] = [];
     let undone: Move | null = null;
     do {
@@ -559,8 +468,7 @@ export default function Home() {
       return;
     }
 
-    workerRef.current?.postMessage("stop");
-    activeSearchFenRef.current = null;
+    stopEngine();
     let replayed = 0;
     try {
       redoTurn.forEach((move) => {
@@ -632,9 +540,8 @@ export default function Home() {
   };
 
   const loadStandardPosition = () => {
-    workerRef.current?.postMessage("stop");
+    stopEngine();
     chessRef.current = null;
-    activeSearchFenRef.current = null;
     startingPositionRef.current = null;
     if (engineState !== "error" && engineState !== "loading") setEngineState("ready");
     setBoard(chessToBoard(new Chess()));
@@ -665,148 +572,6 @@ export default function Home() {
     setSelectedSquare(null);
     if (piece) setMessage(`${piece.color === "w" ? "白" : "黑"}${pieceNames[piece.type]}已放回棋子库`);
   };
-
-  const renderPieceTray = (color: Color, placement: "top" | "bottom") => {
-    const selectedBoardPiece = selectedSquare ? board[selectedSquare] : null;
-    const acceptingReturn =
-      phase === "setup" && selectedBoardPiece?.color === color;
-
-    return (
-      <aside
-        className={`board-piece-tray ${placement} ${acceptingReturn ? "accepting-return" : ""}`}
-        onDragOver={(event) => {
-          if (phase === "setup") event.preventDefault();
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-          const source = event.dataTransfer.getData("application/board-square") as Square;
-          const piece = source ? board[source] : null;
-          if (!piece || phase !== "setup") return;
-          if (piece.color !== color) {
-            setMessage(`请将${piece.color === "w" ? "白" : "黑"}棋放回对应颜色的棋子库`);
-            return;
-          }
-          returnPieceToTray(source);
-        }}
-      >
-        {selectedBoardPiece && phase === "setup" && (
-          <button
-            type="button"
-            className="tray-return-target"
-            onClick={() => {
-              if (selectedBoardPiece.color !== color) {
-                setMessage(`请将${selectedBoardPiece.color === "w" ? "白" : "黑"}棋放回对应颜色的棋子库`);
-                return;
-              }
-              returnPieceToTray(selectedSquare);
-            }}
-            aria-label={
-              acceptingReturn
-                ? `将已选中的${selectedBoardPiece.color === "w" ? "白" : "黑"}${pieceNames[selectedBoardPiece.type]}放回棋子库`
-                : `此处是${color === "w" ? "白方" : "黑方"}棋子库，已选棋子不能放在这里`
-            }
-          />
-        )}
-        <div className="inline-tray-label">
-          <span className={`color-dot ${color}`} />
-          <span>
-            <strong>{color === "w" ? "白方棋子库" : "黑方棋子库"}</strong>
-            <small>
-              {selectedBoardPiece
-                ? acceptingReturn
-                  ? "点这里放回已选棋子"
-                  : "已选棋子属于另一方"
-                : "点按或拖动"}
-            </small>
-          </span>
-        </div>
-        <div className="piece-grid">
-          {pieceOrder.map((type) => {
-            const remaining = pieceLimit[type] - counts[color][type];
-            const isSelected = selectedPiece?.color === color && selectedPiece.type === type;
-            return (
-              <button
-                className={`tray-piece ${isSelected ? "selected" : ""}`}
-                disabled={phase !== "setup" || remaining === 0}
-                key={`${placement}-${color}-${type}`}
-                onClick={() => {
-                  setSelectedSquare(null);
-                  setSelectedPiece(isSelected ? null : { color, type });
-                  setMessage(
-                    isSelected
-                      ? "已取消选择"
-                      : `已拿起${color === "w" ? "白" : "黑"}${pieceNames[type]}，点击棋盘放置`,
-                  );
-                }}
-                draggable={phase === "setup" && remaining > 0}
-                onDragStart={(event) => {
-                  event.dataTransfer.setData("application/chess-piece", `${color}${type}`);
-                }}
-                aria-label={`${color === "w" ? "白" : "黑"}${pieceNames[type]}，剩余${remaining}枚`}
-              >
-                <PieceArt piece={{ color, type }} className="piece-glyph" />
-                <span className="piece-count">×{remaining}</span>
-              </button>
-            );
-          })}
-        </div>
-      </aside>
-    );
-  };
-
-  const renderPositionDashboard = (placement: "board" | "control") => (
-    <section
-      className={`position-dashboard ${placement}-dashboard`}
-      aria-label="双方子力与胜率"
-    >
-      <div className="dashboard-heading">
-        <strong>子力与胜算</strong>
-        <small>{chanceSource}</small>
-      </div>
-      <div className="material-list">
-        {(["w", "b"] as Color[]).map((color) => (
-          <div className={`material-side ${color}`} key={color}>
-            <div className="material-label">
-              <span className={`turn-dot ${color}`} />
-              <strong>{color === "w" ? "白方" : "黑方"}</strong>
-              <small className={materialDelta[color] > 0 ? "positive" : materialDelta[color] < 0 ? "negative" : ""}>
-                子力差 {formatMaterialDelta(materialDelta[color])}
-              </small>
-            </div>
-            <div className="material-pieces" aria-label={`${color === "w" ? "白方" : "黑方"}当前棋子`}>
-              {pieceOrder.map((type) => (
-                dashboardCounts[color][type] > 0 && (
-                  <span className="material-piece" key={type}>
-                    <PieceArt piece={{ color, type }} className="material-piece-art" />
-                    <b>{dashboardCounts[color][type]}</b>
-                  </span>
-                )
-              ))}
-              {Object.values(dashboardCounts[color]).every((count) => count === 0) && <em>暂无棋子</em>}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="win-chance">
-        <div className="chance-labels">
-          <strong>白方 {winChances.w}%</strong>
-          <span>胜算估计</span>
-          <strong>黑方 {winChances.b}%</strong>
-        </div>
-        <div
-          className="chance-track"
-          role="progressbar"
-          aria-label={`白方胜算 ${winChances.w}%，黑方胜算 ${winChances.b}%`}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={winChances.w}
-        >
-          <span style={{ width: `${winChances.w}%` }} />
-        </div>
-        <small className="chance-note">胜率为局面估算，不代表理论必胜；和棋可能性折算在双方数值中。</small>
-      </div>
-    </section>
-  );
 
   return (
     <main className="app-shell">
@@ -897,57 +662,54 @@ export default function Home() {
             </div>
           )}
 
-          {phase === "setup" && renderPieceTray(topTrayColor, "top")}
+          {phase === "setup" && (
+            <PieceTray
+              color={topTrayColor}
+              placement="top"
+              phase={phase}
+              selectedSquare={selectedSquare}
+              board={board}
+              selectedPiece={selectedPiece}
+              counts={counts}
+              onSelectPiece={setSelectedPiece}
+              onClearSelection={() => setSelectedSquare(null)}
+              onReturnPiece={returnPieceToTray}
+              onMessage={setMessage}
+            />
+          )}
 
-          <div className="board-wrap">
-            <div className="chessboard" role="grid" aria-label="国际象棋棋盘">
-              {shownRanks.flatMap((rank, rankIndex) =>
-                shownFiles.map((file, fileIndex) => {
-                  const square = `${file}${rank}` as Square;
-                  const piece = displayBoard[square];
-                  const dark = (files.indexOf(file) + ranks.indexOf(rank)) % 2 === 1;
-                  const selected = reviewPly === null && selectedSquare === square;
-                  const moved = displayLastMove?.from === square || displayLastMove?.to === square;
-                  const legalTarget = legalTargets.has(square);
-                  return (
-                    <button
-                      className={`square ${dark ? "dark" : "light"} ${selected ? "selected" : ""} ${moved ? "last-move" : ""} ${legalTarget ? "legal-target" : ""}`}
-                      key={square}
-                      role="gridcell"
-                      data-square={square}
-                      onClick={() => handleSquareClick(square)}
-                      draggable={phase === "setup" && reviewPly === null && Boolean(piece)}
-                      onDragStart={(event) => {
-                        if (phase === "setup" && piece) {
-                          event.dataTransfer.setData("application/board-square", square);
-                          setSelectedPiece(null);
-                          setSelectedSquare(square);
-                        }
-                      }}
-                      onDragOver={(event) => phase === "setup" && event.preventDefault()}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        const source = event.dataTransfer.getData("application/board-square") as Square;
-                        if (source && board[source]) {
-                          moveSetupPiece(source, square);
-                          return;
-                        }
-                        const data = event.dataTransfer.getData("application/chess-piece");
-                        if (data.length === 2) placePiece(square, { color: data[0] as Color, type: data[1] as PieceSymbol });
-                      }}
-                      aria-label={`${square}${piece ? ` ${piece.color === "w" ? "白" : "黑"}${pieceNames[piece.type]}` : " 空"}`}
-                    >
-                      {fileIndex === 0 && <span className="rank-label">{rank}</span>}
-                      {rankIndex === 7 && <span className="file-label">{file}</span>}
-                      {piece && <PieceArt piece={piece} className="board-piece" />}
-                    </button>
-                  );
-                }),
-              )}
-            </div>
-          </div>
+          <ChessBoard
+            shownRanks={shownRanks}
+            shownFiles={shownFiles}
+            displayBoard={displayBoard}
+            board={board}
+            selectedSquare={selectedSquare}
+            displayLastMove={displayLastMove}
+            legalTargets={legalTargets}
+            phase={phase}
+            reviewPly={reviewPly}
+            onSquareClick={handleSquareClick}
+            onSelectSquare={setSelectedSquare}
+            onClearPiece={() => setSelectedPiece(null)}
+            onMoveSetupPiece={moveSetupPiece}
+            onPlacePiece={placePiece}
+          />
 
-          {phase === "setup" && renderPieceTray(bottomTrayColor, "bottom")}
+          {phase === "setup" && (
+            <PieceTray
+              color={bottomTrayColor}
+              placement="bottom"
+              phase={phase}
+              selectedSquare={selectedSquare}
+              board={board}
+              selectedPiece={selectedPiece}
+              counts={counts}
+              onSelectPiece={setSelectedPiece}
+              onClearSelection={() => setSelectedSquare(null)}
+              onReturnPiece={returnPieceToTray}
+              onMessage={setMessage}
+            />
+          )}
 
           {phase !== "setup" && (
             <div className="board-actions">
@@ -989,7 +751,13 @@ export default function Home() {
             </div>
           )}
 
-          {renderPositionDashboard("board")}
+          <PositionDashboard
+            placement="board"
+            dashboardCounts={dashboardCounts}
+            materialDelta={materialDelta}
+            winChances={winChances}
+            chanceSource={chanceSource}
+          />
         </div>
 
         <aside className={`control-panel ${phase}`}>
@@ -1028,7 +796,13 @@ export default function Home() {
             )
           )}
 
-          {renderPositionDashboard("control")}
+          <PositionDashboard
+            placement="control"
+            dashboardCounts={dashboardCounts}
+            materialDelta={materialDelta}
+            winChances={winChances}
+            chanceSource={chanceSource}
+          />
 
           {phase === "setup" ? (
             <div className="setup-config">

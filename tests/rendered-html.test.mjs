@@ -84,16 +84,23 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.ok(socialPreview.size > 100_000);
   await assert.rejects(access(new URL("../app/_sites-preview/SkeletonPreview.tsx", import.meta.url)));
 
-  const [page, css, packageJson, pieces, pagesWorkflow] = await Promise.all([
+  const [page, css, packageJson, pieces, pagesWorkflow, useEngineSrc, pieceArtSrc, pieceTraySrc, positionDashboardSrc, chessBoardSrc] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readdir(new URL("../public/chess-pieces/", import.meta.url)),
     readFile(new URL("../.github/workflows/pages.yml", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/use-engine.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/piece-art.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/piece-tray.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/position-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/chess-board.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(page, /new Worker\(`\$\{basePath\}\/engine\/stockfish\.js`\)/);
+  const response = await render();
+  const html = await response.text();
+  assert.match(useEngineSrc, /new Worker\(`\$\{basePath\}\/engine\/stockfish\.js`\)/);
   assert.match(page, /new Chess\(boardToFen\(board, turn, isStandardSetup \? "KQkq" : "-"\)\)/);
-  assert.match(page, /chess-pieces\/w-k\.png/);
+  assert.match(pieceArtSrc, /chess-pieces\/w-k\.png/);
   assert.doesNotMatch(page, /[♔♕♖♗♘♙♚♛♜♝♞♟]/);
   assert.match(css, /grid-template-rows:\s*repeat\(8,\s*minmax\(0,\s*1fr\)\)/);
   assert.deepEqual(pieces.sort(), [
@@ -120,25 +127,25 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /空棋盘/);
   assert.match(page, /选择起始棋盘/);
   assert.ok(
-    page.indexOf('className="setup-presets"') < page.indexOf('className="board-wrap"'),
+    html.indexOf('class="setup-presets"') < html.indexOf('class="board-wrap"'),
     "board presets should appear above the board",
   );
   assert.match(page, /const topTrayColor: Color = isFlipped \? "w" : "b"/);
   assert.match(page, /const bottomTrayColor: Color = isFlipped \? "b" : "w"/);
-  assert.match(page, /renderPieceTray\(topTrayColor, "top"\)/);
-  assert.match(page, /renderPieceTray\(bottomTrayColor, "bottom"\)/);
+  assert.match(html, /class="board-piece-tray top/);
+  assert.match(html, /class="board-piece-tray bottom/);
   assert.doesNotMatch(page, /className=\{`piece-panel/);
   assert.match(css, /\.board-piece-tray \.piece-grid/);
   assert.match(css, /\.setup-presets\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(css, /\.board-preset-bar \.setup-presets > button\s*\{[\s\S]*?height:\s*42px/);
-  assert.match(page, /双方子力与胜率/);
+  assert.match(html, /双方子力与胜率/);
   assert.match(page, /Stockfish 局面估算/);
-  assert.match(page, /子力与胜算/);
+  assert.match(html, /子力与胜算/);
   assert.match(page, /const materialDelta = useMemo/);
   assert.match(page, /b: whiteLead === 0 \? 0 : -whiteLead/);
-  assert.match(page, /子力差 \{formatMaterialDelta\(materialDelta\[color\]\)\}/);
-  assert.match(page, /renderPositionDashboard\("control"\)/);
-  assert.match(page, /renderPositionDashboard\("board"\)/);
+  assert.match(positionDashboardSrc, /子力差 \{formatMaterialDelta\(materialDelta\[color\]\)\}/);
+  assert.match(html, /class="position-dashboard control-dashboard"/);
+  assert.match(html, /class="position-dashboard board-dashboard"/);
   assert.match(css, /\.board-dashboard\s*\{[\s\S]*?display:\s*none/);
   assert.ok(
     page.indexOf('className="control-panel"') < page.indexOf('className="selection-toolbar"'),
@@ -170,10 +177,10 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /已将当前最新局面设为新起点，可继续摆棋/);
   assert.equal(page.match(/从当前局面重摆/g)?.length, 2);
   assert.match(page, /startingPositionRef/);
-  assert.match(page, /activeSearchFenRef/);
+  assert.match(useEngineSrc, /activeSearchFenRef/);
   assert.match(page, /放回棋子库/);
-  assert.match(page, /className="tray-return-target"/);
-  assert.match(page, /点这里放回已选棋子/);
+  assert.match(pieceTraySrc, /className="tray-return-target"/);
+  assert.match(pieceTraySrc, /点这里放回已选棋子/);
   assert.match(page, /returnPieceToTray\(selectedSquare\)/);
   assert.match(css, /\.tray-return-target\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?inset:\s*0/);
   assert.match(page, /control-panel \$\{phase\}/);
@@ -182,7 +189,8 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(css, /\.control-panel\.playing,[\s\S]*?\.control-panel\.over\s*\{[\s\S]*?order:\s*3/);
   assert.match(css, /\.control-dashboard\s*\{\s*display:\s*none/);
   assert.match(css, /\.board-dashboard\s*\{[\s\S]*?display:\s*block/);
-  assert.match(page, /application\/board-square/);
+  assert.match(chessBoardSrc, /application\/board-square/);
+  assert.match(pieceTraySrc, /application\/board-square/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });
 
