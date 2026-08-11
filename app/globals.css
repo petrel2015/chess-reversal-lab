@@ -1423,6 +1423,10 @@ footer {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 0.12s ease, background 0.12s ease;
 }
 
