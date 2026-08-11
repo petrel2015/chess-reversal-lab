@@ -23,6 +23,7 @@ import { PieceArt } from "./components/piece-art";
 import { PieceTray } from "./components/piece-tray";
 import { PositionDashboard } from "./components/position-dashboard";
 import { ChessBoard } from "./components/chess-board";
+import { DonateButton } from "./components/donate-button";
 
 type Phase = "setup" | "playing" | "over";
 type StartingPosition = { board: BoardMap; turn: Color; isStandard: boolean };
@@ -907,8 +908,11 @@ export default function Home() {
       </section>
 
       <footer>
-        <span>仅用于自定义残局研究与本地推演</span>
-        <span>Stockfish 17.1 · GPLv3 · 无法保证理论败势逆转</span>
+        <div className="footer-meta">
+          <span>仅用于自定义残局研究与本地推演</span>
+          <span>Stockfish 17.1 · GPLv3 · 无法保证理论败势逆转</span>
+        </div>
+        <DonateButton />
       </footer>
     </main>
   );

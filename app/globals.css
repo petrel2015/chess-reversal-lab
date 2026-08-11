@@ -1378,10 +1378,144 @@ fieldset > p {
 
 footer {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 14px;
   color: #555850;
   font-size: 9px;
   padding: 22px 0 32px;
+}
+
+.footer-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* 赞赏支持区域 */
+.donate-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.08), rgba(212, 175, 55, 0.02));
+  border: 1px solid rgba(212, 175, 55, 0.18);
+}
+
+.donate-tag {
+  color: #b9a85e;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.donate-triggers {
+  display: flex;
+  gap: 8px;
+}
+
+.donate-trigger {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.donate-trigger:hover {
+  transform: translateY(-1px);
+}
+
+.donate-trigger.alipay {
+  background: #1677ff;
+  color: #fff;
+}
+
+.donate-trigger.alipay:hover {
+  background: #0e6ae8;
+}
+
+.donate-trigger.wechat {
+  background: #07c160;
+  color: #fff;
+}
+
+.donate-trigger.wechat:hover {
+  background: #06a852;
+}
+
+/* 赞赏模态框 */
+.donate-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 10, 8, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.donate-modal {
+  position: relative;
+  width: min(340px, calc(100vw - 32px));
+  padding: 28px 24px 24px;
+  border-radius: 18px;
+  background: #14171a;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  text-align: center;
+}
+
+.donate-modal h3 {
+  margin: 0 0 18px;
+  color: #f0d97a;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.donate-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: #aaa;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.donate-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.donate-qr {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  margin: 0 auto 14px;
+  border-radius: 12px;
+}
+
+.donate-modal small {
+  display: block;
+  color: #7d7d72;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 @media (max-width: 1100px) {
@@ -1599,6 +1733,9 @@ footer {
     padding: 0 14px;
   }
   footer { flex-direction: column; gap: 6px; }
+  .footer-meta { flex-direction: column; gap: 6px; }
+  .donate-section { flex-direction: column; gap: 10px; padding: 14px 12px; }
+  .donate-trigger { flex: 1; width: 100%; }
   .turn-banner { gap: 8px; min-width: 0; }
   .turn-banner > div { min-width: 0; }
   .turn-banner strong { font-size: 12px; }
