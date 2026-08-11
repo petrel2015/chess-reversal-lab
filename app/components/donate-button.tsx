@@ -25,6 +25,14 @@ function isMobile() {
 export function DonateButton() {
   const [openChannel, setOpenChannel] = useState<Channel | null>(null);
 
+  // 组件挂载后预加载两张二维码到浏览器缓存，模态框打开时瞬间显示（避免"反应一下"）
+  useEffect(() => {
+    [alipayQr, wechatQr].forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
+  }, []);
+
  // ESC 键关闭模态框
   useEffect(() => {
     if (!openChannel) return;
