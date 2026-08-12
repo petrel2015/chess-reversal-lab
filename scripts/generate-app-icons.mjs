@@ -51,13 +51,13 @@ const icon512 = await sharp(background)
       top: 52,
     },
   ])
-  .png({ compressionLevel: 9 })
+  .png({ compressionLevel: 9, palette: true, quality: 85, colors: 256 })
   .toBuffer();
 
 await Promise.all([
   sharp(icon512).toFile(path.join(outputDirectory, "icon-512.png")),
-  sharp(icon512).resize(192, 192).png({ compressionLevel: 9 }).toFile(path.join(outputDirectory, "icon-192.png")),
-  sharp(icon512).resize(180, 180).png({ compressionLevel: 9 }).toFile(path.join(outputDirectory, "apple-touch-icon.png")),
+  sharp(icon512).resize(192, 192).png({ compressionLevel: 9, palette: true, quality: 85, colors: 256 }).toFile(path.join(outputDirectory, "icon-192.png")),
+  sharp(icon512).resize(180, 180).png({ compressionLevel: 9, palette: true, quality: 85, colors: 256 }).toFile(path.join(outputDirectory, "apple-touch-icon.png")),
 ]);
 
 console.log("Generated apple-touch-icon.png, icon-192.png, and icon-512.png");
