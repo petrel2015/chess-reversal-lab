@@ -132,6 +132,43 @@ button {
   50% { opacity: 0.35; }
 }
 
+.topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  padding: 2px;
+  gap: 2px;
+}
+
+.lang-toggle button {
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: #a9aca4;
+  font: 600 11px/1 var(--font-space), sans-serif;
+  letter-spacing: 0.1em;
+  padding: 6px 9px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.lang-toggle button:hover {
+  color: var(--ink);
+}
+
+.lang-toggle button.active {
+  background: var(--acid);
+  color: #11170a;
+}
+
 .hero {
   padding: 38px 0 34px;
   display: flex;

@@ -2,6 +2,7 @@
 
 import type { Color, PieceSymbol } from "chess.js";
 import { formatMaterialDelta, pieceOrder } from "../lib/chess-utils";
+import { sideKey, useI18n } from "../lib/i18n";
 import { PieceArt } from "./piece-art";
 
 export type PositionDashboardProps = {
@@ -19,13 +20,14 @@ export function PositionDashboard({
   winChances,
   chanceSource,
 }: PositionDashboardProps) {
+  const { t } = useI18n();
   return (
     <section
       className={`position-dashboard ${placement}-dashboard`}
-      aria-label="双方子力与胜率"
+      aria-label={t("dash.aria")}
     >
       <div className="dashboard-heading">
-        <strong>子力与胜算</strong>
+        <strong>{t("dash.heading")}</strong>
         <small>{chanceSource}</small>
       </div>
       <div className="material-list">
@@ -33,12 +35,12 @@ export function PositionDashboard({
           <div className={`material-side ${color}`} key={color}>
             <div className="material-label">
               <span className={`turn-dot ${color}`} />
-              <strong>{color === "w" ? "白方" : "黑方"}</strong>
+              <strong>{t(sideKey(color))}</strong>
               <small className={materialDelta[color] > 0 ? "positive" : materialDelta[color] < 0 ? "negative" : ""}>
-                子力差 {formatMaterialDelta(materialDelta[color])}
+                {t("dash.materialDelta", { value: formatMaterialDelta(materialDelta[color]) })}
               </small>
             </div>
-            <div className="material-pieces" aria-label={`${color === "w" ? "白方" : "黑方"}当前棋子`}>
+            <div className="material-pieces" aria-label={t("dash.sidePiecesAria", { side: t(sideKey(color)) })}>
               {pieceOrder.map((type) => (
                 dashboardCounts[color][type] > 0 && (
                   <span className="material-piece" key={type}>
@@ -47,28 +49,28 @@ export function PositionDashboard({
                   </span>
                 )
               ))}
-              {Object.values(dashboardCounts[color]).every((count) => count === 0) && <em>暂无棋子</em>}
+              {Object.values(dashboardCounts[color]).every((count) => count === 0) && <em>{t("dash.noPieces")}</em>}
             </div>
           </div>
         ))}
       </div>
       <div className="win-chance">
         <div className="chance-labels">
-          <strong>白方 {winChances.w}%</strong>
-          <span>胜算估计</span>
-          <strong>黑方 {winChances.b}%</strong>
+          <strong>{t("dash.whiteChance", { n: winChances.w })}</strong>
+          <span>{t("dash.chanceLabel")}</span>
+          <strong>{t("dash.blackChance", { n: winChances.b })}</strong>
         </div>
         <div
           className="chance-track"
           role="progressbar"
-          aria-label={`白方胜算 ${winChances.w}%，黑方胜算 ${winChances.b}%`}
+          aria-label={t("dash.chanceAria", { w: winChances.w, b: winChances.b })}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={winChances.w}
         >
           <span style={{ width: `${winChances.w}%` }} />
         </div>
-        <small className="chance-note">胜率为局面估算，不代表理论必胜；和棋可能性折算在双方数值中。</small>
+        <small className="chance-note">{t("dash.note")}</small>
       </div>
     </section>
   );

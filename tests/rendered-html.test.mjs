@@ -93,7 +93,7 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.ok(wechatQr.size > 5_000, "wechat QR should be a real PNG");
   await assert.rejects(access(new URL("../app/_sites-preview/SkeletonPreview.tsx", import.meta.url)));
 
-  const [page, css, packageJson, pieces, pagesWorkflow, useEngineSrc, pieceArtSrc, pieceTraySrc, positionDashboardSrc, chessBoardSrc] = await Promise.all([
+  const [page, css, packageJson, pieces, pagesWorkflow, useEngineSrc, pieceArtSrc, pieceTraySrc, positionDashboardSrc, chessBoardSrc, i18nSrc] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -104,9 +104,17 @@ test("ships the browser engine and removes starter assets", async () => {
     readFile(new URL("../app/components/piece-tray.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/position-dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/chess-board.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/i18n.tsx", import.meta.url), "utf8"),
   ]);
   const response = await render();
   const html = await response.text();
+  // i18n: both locale dictionaries and browser-language detection must exist,
+  // and the shared copy the SSR shell relies on must still be defined (in zh).
+  assert.match(i18nSrc, /export function detectLocale/);
+  assert.match(i18nSrc, /const zh: Record<string, string>/);
+  assert.match(i18nSrc, /const en: Record<string, string>/);
+  assert.match(i18nSrc, /"msg.loadedStandard": "已加载标准开局，可直接开始或继续调整"/);
+  assert.match(i18nSrc, /"validate.ok": "基础合法性检查已通过"/);
   assert.match(useEngineSrc, /new Worker\(`\$\{basePath\}\/engine\/stockfish\.js`\)/);
   assert.match(page, /new Chess\(boardToFen\(board, turn, isStandardSetup \? "KQkq" : "-"\)\)/);
   assert.match(pieceArtSrc, /chess-pieces\/w-k\.png/);
@@ -121,9 +129,9 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /const returnPieceToTray =/);
   assert.match(page, /const legalTargets =/);
   assert.match(page, /\.moves\(\{ square: selectedSquare, verbose: true \}\)/);
-  assert.match(page, /兵不能后退/);
-  assert.match(page, /翻转棋盘视角，仅改变显示方向/);
-  assert.match(page, /翻转视角/);
+  assert.match(i18nSrc, /兵不能后退/);
+  assert.match(page, /t\("flip.aria"\)/);
+  assert.match(page, /t\("flip.label"\)/);
   assert.match(page, /className="flip-side-piece"/);
   assert.doesNotMatch(page, /className="flip-color/);
   assert.doesNotMatch(page, /className="icon-button"/);
@@ -132,9 +140,9 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /useState\(true\)/);
   assert.match(page, /setBoard\(chessToBoard\(new Chess\(\)\)\)/);
   assert.match(page, /isStandardSetup \? "KQkq" : "-"/);
-  assert.match(page, /标准开局/);
-  assert.match(page, /空棋盘/);
-  assert.match(page, /选择起始棋盘/);
+  assert.match(page, /t\("preset.standard"\)/);
+  assert.match(page, /t\("preset.empty"\)/);
+  assert.match(page, /t\("preset.title"\)/);
   assert.ok(
     html.indexOf('class="setup-presets"') < html.indexOf('class="board-wrap"'),
     "board presets should appear above the board",
@@ -148,11 +156,11 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(css, /\.setup-presets\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(css, /\.board-preset-bar \.setup-presets > button\s*\{[\s\S]*?height:\s*42px/);
   assert.match(html, /双方子力与胜率/);
-  assert.match(page, /Stockfish 局面估算/);
+  assert.match(page, /t\("chance.engine"\)/);
   assert.match(html, /子力与胜算/);
   assert.match(page, /const materialDelta = useMemo/);
   assert.match(page, /b: whiteLead === 0 \? 0 : -whiteLead/);
-  assert.match(positionDashboardSrc, /子力差 \{formatMaterialDelta\(materialDelta\[color\]\)\}/);
+  assert.match(positionDashboardSrc, /t\("dash.materialDelta", \{ value: formatMaterialDelta\(materialDelta\[color\]\) \}\)/);
   assert.match(html, /class="position-dashboard control-dashboard"/);
   assert.match(html, /class="position-dashboard board-dashboard"/);
   assert.match(css, /\.board-dashboard\s*\{[\s\S]*?display:\s*none/);
@@ -170,26 +178,26 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /disabled=\{!canReviewForward\}/);
   assert.match(page, /className="history-icon" aria-hidden="true">↶/);
   assert.match(page, /className="history-icon" aria-hidden="true">↷/);
-  assert.match(page, /悔棋/);
-  assert.match(page, /恢复/);
-  assert.match(page, /回看棋谱/);
-  assert.match(page, /上一步/);
-  assert.match(page, /下一步/);
-  assert.match(page, /回看不会改变棋局/);
-  assert.match(page, /重摆开局/);
+  assert.match(page, /t\("action.undo"\)/);
+  assert.match(page, /t\("action.redo"\)/);
+  assert.match(page, /t\("action.review"\)/);
+  assert.match(page, /t\("action.prev"\)/);
+  assert.match(page, /t\("action.next"\)/);
+  assert.match(page, /t\("review.idle"\)/);
+  assert.match(page, /t\("action.resetSetup"\)/);
   assert.match(page, /const editFromCurrentPosition =/);
   assert.match(page, /const currentBoard = currentChess \? chessToBoard\(currentChess\) : board/);
   assert.match(page, /const nextTurn = currentChess\?\.turn\(\) \?\? turn/);
   assert.match(page, /setBoard\(cloneBoard\(currentBoard\)\)/);
   assert.match(page, /setTurn\(nextTurn\)/);
   assert.match(page, /setIsStandardSetup\(false\)/);
-  assert.match(page, /已将当前最新局面设为新起点，可继续摆棋/);
-  assert.equal(page.match(/从当前局面重摆/g)?.length, 2);
+  assert.match(page, /t\("msg.setCurrentStart"\)/);
+  assert.equal(page.match(/t\("action.resetFromCurrent"\)/g)?.length, 2);
   assert.match(page, /startingPositionRef/);
   assert.match(useEngineSrc, /activeSearchFenRef/);
-  assert.match(page, /放回棋子库/);
+  assert.match(page, /t\("select.return"\)/);
   assert.match(pieceTraySrc, /className="tray-return-target"/);
-  assert.match(pieceTraySrc, /点这里放回已选棋子/);
+  assert.match(pieceTraySrc, /t\("tray.returnHint"\)/);
   assert.match(page, /returnPieceToTray\(selectedSquare\)/);
   assert.match(css, /\.tray-return-target\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?inset:\s*0/);
   assert.match(page, /control-panel \$\{phase\}/);

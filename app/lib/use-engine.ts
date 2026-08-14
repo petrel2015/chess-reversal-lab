@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Chess, Color } from "chess.js";
+import { translate, type Locale, type TranslateFn } from "./i18n";
 
 export type EngineState = "loading" | "ready" | "thinking" | "error";
 export type EngineScore = { cp?: number; mate?: number };
@@ -18,6 +19,8 @@ export type UseEngineOptions = {
   moveTime: number;
   isThinkingTurn: boolean;
   board: unknown;
+  locale: Locale;
+  t: TranslateFn;
   onOutcome: (outcome: EngineOutcome) => void;
   onMessage: (message: string) => void;
 };
@@ -31,11 +34,12 @@ export function useEngine({
   moveTime,
   isThinkingTurn,
   board,
+  t,
   onOutcome,
   onMessage,
 }: UseEngineOptions) {
   const [engineState, setEngineState] = useState<EngineState>("loading");
-  const [evaluation, setEvaluation] = useState("等待局面");
+  const [evaluation, setEvaluation] = useState(() => translate("zh", "eval.waiting"));
   const [engineScoreWhite, setEngineScoreWhite] = useState<EngineScore | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const activeSearchFenRef = useRef<string | null>(null);
@@ -49,20 +53,23 @@ export function useEngine({
         const favorable = score.mate > 0;
         setEvaluation(
           favorable
-            ? `指定方可强制将死 · M${Math.abs(score.mate)}`
-            : `指定方将被强制将死 · M${Math.abs(score.mate)}`,
+            ? t("eval.mateWin", { n: Math.abs(score.mate) })
+            : t("eval.mateLoss", { n: Math.abs(score.mate) }),
         );
         return;
       }
       setEngineScoreWhite({ cp: (score.cp ?? 0) * whitePerspective });
       const pawns = (score.cp ?? 0) / 100;
-      if (pawns > 2.5) setEvaluation(`指定方明显优势 · +${pawns.toFixed(1)}`);
-      else if (pawns > 0.6) setEvaluation(`指定方稍优 · +${pawns.toFixed(1)}`);
-      else if (pawns < -2.5) setEvaluation(`指定方明显劣势 · ${pawns.toFixed(1)}`);
-      else if (pawns < -0.6) setEvaluation(`指定方稍劣 · ${pawns.toFixed(1)}`);
-      else setEvaluation(`局面接近均势 · ${pawns >= 0 ? "+" : ""}${pawns.toFixed(1)}`);
+      if (pawns > 2.5) setEvaluation(t("eval.bigAdv", { n: pawns.toFixed(1) }));
+      else if (pawns > 0.6) setEvaluation(t("eval.slightAdv", { n: pawns.toFixed(1) }));
+      else if (pawns < -2.5) setEvaluation(t("eval.bigDis", { n: pawns.toFixed(1) }));
+      else if (pawns < -0.6) setEvaluation(t("eval.slightDis", { n: pawns.toFixed(1) }));
+      else
+        setEvaluation(
+          t("eval.equal", { sign: pawns >= 0 ? "+" : "", n: pawns.toFixed(1) }),
+        );
     },
-    [winnerColor],
+    [t, winnerColor],
   );
 
   const makeEngineMove = useCallback(() => {
@@ -70,17 +77,17 @@ export function useEngine({
     const worker = workerRef.current;
     if (!chess || chess.isGameOver() || chess.turn() !== winnerColor) return;
     if (!worker || engineState === "error") {
-      onMessage("引擎未能载入，请刷新页面重试");
+      onMessage(t("msg.engineLoadFail"));
       return;
     }
     activeSearchFenRef.current = chess.fen();
     pendingScoreRef.current = {};
     setEngineState("thinking");
-    onMessage(`${winnerColor === "w" ? "白方" : "黑方"} AI 正在计算最佳走法…`);
+    onMessage(t("msg.aiCalculating", { side: t(winnerColor === "w" ? "side.white" : "side.black") }));
     worker.postMessage("stop");
     worker.postMessage(`position fen ${chess.fen()}`);
     worker.postMessage(`go movetime ${moveTime}`);
-  }, [chessRef, engineState, moveTime, onMessage, winnerColor]);
+  }, [chessRef, engineState, moveTime, onMessage, t, winnerColor]);
 
   useEffect(() => {
     const worker = new Worker(`${basePath}/engine/stockfish.js`);
@@ -126,14 +133,14 @@ export function useEngine({
     };
     worker.onerror = () => {
       setEngineState("error");
-      onMessage("Stockfish 载入失败，请刷新页面重试");
+      onMessage(t("msg.engineLoadFailStockfish"));
     };
     worker.postMessage("uci");
     return () => {
       worker.postMessage("quit");
       worker.terminate();
     };
-  }, [humanColor, onOutcome, onMessage, updateEvaluation]);
+  }, [humanColor, onOutcome, onMessage, t, updateEvaluation]);
 
   useEffect(() => {
     if (isThinkingTurn && engineState === "ready") {
