@@ -14,21 +14,31 @@ import {
   pieceOrder,
   pieceLimit,
   pieceValue,
-  pieceNames,
   type Piece,
   type BoardMap,
 } from "./lib/chess-utils";
 import { useEngine, type EngineOutcome } from "./lib/use-engine";
+import {
+  colorKey,
+  pieceKey,
+  sideKey,
+  translate,
+  useI18n,
+  type Locale,
+  type TranslateFn,
+} from "./lib/i18n";
 import { PieceArt } from "./components/piece-art";
 import { PieceTray } from "./components/piece-tray";
 import { PositionDashboard } from "./components/position-dashboard";
 import { ChessBoard } from "./components/chess-board";
 import { DonateButton } from "./components/donate-button";
+import { LanguageToggle } from "./components/language-toggle";
 
 type Phase = "setup" | "playing" | "over";
 type StartingPosition = { board: BoardMap; turn: Color; isStandard: boolean };
 
 export default function Home() {
+  const { t, locale } = useI18n();
   const [board, setBoard] = useState<BoardMap>(() => chessToBoard(new Chess()));
   const [phase, setPhase] = useState<Phase>("setup");
   const [winnerColor, setWinnerColor] = useState<Color>("w");
@@ -39,7 +49,7 @@ export default function Home() {
   const [moves, setMoves] = useState<Move[]>([]);
   const [redoTurns, setRedoTurns] = useState<Move[][]>([]);
   const [reviewPly, setReviewPly] = useState<number | null>(null);
-  const [message, setMessage] = useState("已加载标准开局，可直接开始或继续调整");
+  const [message, setMessage] = useState(() => translate("zh", "msg.loadedStandard"));
   const [moveTime, setMoveTime] = useState(1200);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isStandardSetup, setIsStandardSetup] = useState(true);
@@ -73,6 +83,8 @@ export default function Home() {
     moveTime,
     isThinkingTurn,
     board,
+    locale,
+    t,
     onOutcome: dispatchOutcome,
     onMessage: setMessage,
   });
@@ -96,18 +108,18 @@ export default function Home() {
           setMoves((current) => [...current, move]);
           if (chess.isGameOver()) {
             setPhase("over");
-            setMessage(describeEnding(chess));
+            setMessage(describeEnding(chess, t));
           } else {
             const human = winnerColor === "w" ? "b" : "w";
-            setMessage(`轮到你模拟${human === "w" ? "白方" : "黑方"}落子`);
+            setMessage(t("msg.simulateTurn", { side: t(sideKey(human)) }));
           }
         } catch {
           setEngineState("error");
-          setMessage("引擎返回了无法执行的棋步");
+          setMessage(t("msg.engineIllegal"));
         }
       }
     },
-    [winnerColor, setEngineState],
+    [t, winnerColor, setEngineState],
   );
   useEffect(() => {
     outcomeHandlerRef.current = handleEngineOutcome;
@@ -203,12 +215,12 @@ export default function Home() {
   }, [engineScoreWhite, materialDelta, moves, phase, reviewPly]);
   const chanceSource =
     reviewPly !== null
-      ? `回看第 ${reviewPly}/${moves.length} 步`
+      ? t("chance.review", { ply: reviewPly, total: moves.length })
       : phase === "over"
-      ? "对局结果"
-      : phase !== "setup" && engineScoreWhite
-        ? "Stockfish 局面估算"
-        : "按当前子力估算";
+        ? t("chance.result")
+        : phase !== "setup" && engineScoreWhite
+          ? t("chance.engine")
+          : t("chance.material");
   const legalTargets = useMemo(() => {
     const chess = chessRef.current;
     if (!chess || phase !== "playing" || !selectedSquare || chess.turn() !== humanColor) {
@@ -221,15 +233,41 @@ export default function Home() {
     );
   }, [board, humanColor, phase, selectedSquare]);
 
+  // When the active language changes, re-derive the status line so it doesn't
+  // keep showing a stale string from the previous language. Runs only on locale
+  // change (not on every phase/message update) to avoid clobbering user messages.
+  const statusMessage = useCallback(
+    (loc: Locale): string => {
+      const chess = chessRef.current;
+      if ((phase === "over" || phase === "playing") && chess?.isGameOver()) {
+        const locT: TranslateFn = (k, p) => translate(loc, k, p);
+        return describeEnding(chess, locT);
+      }
+      if (phase === "setup") {
+        return translate(loc, isStandardSetup ? "msg.loadedStandard" : "msg.cleared");
+      }
+      const turnNow = chess?.turn() ?? turn;
+      if (turnNow === winnerColor) return translate(loc, "msg.positionLocked");
+      return translate(loc, "msg.simulateTurn", { side: translate(loc, sideKey(humanColor)) });
+    },
+    [humanColor, isStandardSetup, phase, turn, winnerColor],
+  );
+  useEffect(() => {
+    setMessage(statusMessage(locale));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale]);
+
   const placePiece = (square: Square, piece: Piece) => {
     if (piece.type === "p" && (square[1] === "1" || square[1] === "8")) {
-      setMessage("兵不能放在第一排或第八排");
+      setMessage(t("msg.pawnRankPlace"));
       return;
     }
     const alreadyOnSquare = board[square];
     const available = pieceLimit[piece.type] - counts[piece.color][piece.type];
     if (available <= 0 && !(alreadyOnSquare?.color === piece.color && alreadyOnSquare.type === piece.type)) {
-      setMessage(`${piece.color === "w" ? "白" : "黑"}${pieceNames[piece.type]}已经全部用完`);
+      setMessage(
+        t("msg.pieceUsedUp", { color: t(colorKey(piece.color)), name: t(pieceKey(piece.type)) }),
+      );
       return;
     }
     setBoard((current) => ({ ...current, [square]: piece }));
@@ -237,14 +275,16 @@ export default function Home() {
     setEngineScoreWhite(null);
     setSelectedPiece(null);
     setSelectedSquare(null);
-    setMessage(`${piece.color === "w" ? "白" : "黑"}${pieceNames[piece.type]}已放到 ${square}，可继续选择棋子`);
+    setMessage(
+      t("msg.piecePlaced", { color: t(colorKey(piece.color)), name: t(pieceKey(piece.type)), square }),
+    );
   };
 
   const moveSetupPiece = (from: Square, to: Square) => {
     const moving = board[from];
     if (!moving) return;
     if (moving.type === "p" && (to[1] === "1" || to[1] === "8")) {
-      setMessage("兵不能移动到第一排或第八排");
+      setMessage(t("msg.pawnRankMove"));
       return;
     }
     const target = board[to];
@@ -258,7 +298,7 @@ export default function Home() {
     setIsStandardSetup(false);
     setEngineScoreWhite(null);
     setSelectedSquare(null);
-    setMessage(target ? `已交换 ${from} 与 ${to} 的棋子` : `已将棋子从 ${from} 移到 ${to}`);
+    setMessage(target ? t("msg.swapped", { from, to }) : t("msg.moved", { from, to }));
   };
 
   const handleSquareClick = (square: Square) => {
@@ -279,13 +319,19 @@ export default function Home() {
         setSelectedPiece(null);
         setSelectedSquare(square);
         const piece = board[square];
-        setMessage(`已选中 ${square} 的${piece.color === "w" ? "白" : "黑"}${pieceNames[piece.type]}，点击目标格移动`);
+        setMessage(
+          t("msg.selectedSquare", {
+            square,
+            color: t(colorKey(piece.color)),
+            name: t(pieceKey(piece.type)),
+          }),
+        );
       }
       return;
     }
 
     if (reviewPly !== null) {
-      setMessage(`正在回看第 ${reviewPly}/${moves.length} 步，请用“下一步”回到当前局面`);
+      setMessage(t("msg.reviewingBlocked", { ply: reviewPly, total: moves.length }));
       return;
     }
 
@@ -303,7 +349,7 @@ export default function Home() {
       if (board[square]?.color === humanColor) {
         setSelectedSquare(square);
       } else {
-        setMessage("这不是一个合法棋步；兵不能后退");
+        setMessage(t("msg.illegalMove"));
         setSelectedSquare(null);
       }
       return;
@@ -316,16 +362,16 @@ export default function Home() {
       setLastMove({ from: move.from, to: move.to });
       setMoves((current) => [...current, move]);
       setEngineScoreWhite(null);
-      setEvaluation("等待引擎重新评估");
+      setEvaluation(t("msg.evalWaitingReeval"));
       setSelectedSquare(null);
       if (chess.isGameOver()) {
         setPhase("over");
-        setMessage(describeEnding(chess));
+        setMessage(describeEnding(chess, t));
       } else {
-        setMessage("落子有效，轮到 AI");
+        setMessage(t("msg.moveValid"));
       }
     } catch {
-      setMessage("走法校验失败，请重新选择棋子");
+      setMessage(t("msg.moveValidateFail"));
       setSelectedSquare(null);
     }
   };
@@ -349,16 +395,16 @@ export default function Home() {
       setSelectedSquare(null);
       setPhase(chess.isGameOver() ? "over" : "playing");
       setEngineScoreWhite(null);
-      setEvaluation("等待引擎评估");
+      setEvaluation(t("msg.evalWaiting"));
       if (chess.isGameOver()) {
-        setMessage(describeEnding(chess));
+        setMessage(describeEnding(chess, t));
       } else if (turn === winnerColor) {
-        setMessage("局面已锁定，AI 准备落子");
+        setMessage(t("msg.positionLocked"));
       } else {
-        setMessage(`请先模拟${humanColor === "w" ? "白方" : "黑方"}落子`);
+        setMessage(t("msg.pleaseSimulate", { side: t(sideKey(humanColor)) }));
       }
     } catch {
-      setMessage("局面初始化失败，请检查摆法");
+      setMessage(t("msg.initFailed"));
     }
   };
 
@@ -377,8 +423,8 @@ export default function Home() {
     setSelectedSquare(null);
     setIsStandardSetup(false);
     setEngineScoreWhite(null);
-    setEvaluation("等待局面");
-    setMessage("棋盘已清空，重新布置残局");
+    setEvaluation(t("eval.waiting"));
+    setMessage(t("msg.cleared"));
   };
 
   const editAgain = () => {
@@ -402,8 +448,8 @@ export default function Home() {
     setSelectedPiece(null);
     setSelectedSquare(null);
     setEngineScoreWhite(null);
-    setEvaluation("等待局面");
-    setMessage(starting ? "已恢复本局开始前的摆法，可重新调整" : "已返回摆棋模式");
+    setEvaluation(t("eval.waiting"));
+    setMessage(starting ? t("msg.restoredSetup") : t("msg.backToSetup"));
   };
 
   const editFromCurrentPosition = () => {
@@ -425,14 +471,14 @@ export default function Home() {
     setSelectedSquare(null);
     setIsStandardSetup(false);
     setEngineScoreWhite(null);
-    setEvaluation("等待局面");
-    setMessage("已将当前最新局面设为新起点，可继续摆棋");
+    setEvaluation(t("eval.waiting"));
+    setMessage(t("msg.setCurrentStart"));
   };
 
   const undoLastTurn = () => {
     const chess = chessRef.current;
     if (!chess || !canUndo) {
-      setMessage("还没有可以撤销的己方棋步");
+      setMessage(t("msg.nothingToUndo"));
       return;
     }
 
@@ -456,16 +502,16 @@ export default function Home() {
     setSelectedSquare(null);
     setPhase("playing");
     setEngineScoreWhite(null);
-    setEvaluation("等待重新评估");
+    setEvaluation(t("msg.evalWaitingReeval"));
     if (engineState !== "error") setEngineState("ready");
-    setMessage("已悔棋，轮到你重新落子");
+    setMessage(t("msg.undone"));
   };
 
   const redoLastTurn = () => {
     const chess = chessRef.current;
     const redoTurn = redoTurns.at(-1);
     if (!chess || !redoTurn) {
-      setMessage("已经恢复到最新一步");
+      setMessage(t("msg.alreadyLatest"));
       return;
     }
 
@@ -481,7 +527,7 @@ export default function Home() {
         chess.undo();
         replayed -= 1;
       }
-      setMessage("前进记录无法恢复，请重新落子");
+      setMessage(t("msg.redoFail"));
       return;
     }
 
@@ -496,21 +542,21 @@ export default function Home() {
     setSelectedSquare(null);
     setPhase(chess.isGameOver() ? "over" : "playing");
     setEngineScoreWhite(null);
-    setEvaluation("等待重新评估");
+    setEvaluation(t("msg.evalWaitingReeval"));
     if (engineState !== "error") setEngineState("ready");
     setMessage(
       chess.isGameOver()
-        ? describeEnding(chess)
+        ? describeEnding(chess, t)
         : needsAiReply
-          ? "已前进，AI 将重新回应"
-          : "已恢复被撤销的回合",
+          ? t("msg.redoneAi")
+          : t("msg.redoneTurn"),
     );
   };
 
   const reviewPreviousMove = () => {
     const currentPly = reviewPly ?? moves.length;
     if (currentPly <= 0) {
-      setMessage("已经回看到本局起始位置");
+      setMessage(t("msg.reviewStart"));
       return;
     }
     const previousPly = currentPly - 1;
@@ -518,14 +564,14 @@ export default function Home() {
     setSelectedSquare(null);
     setMessage(
       previousPly === 0
-        ? `正在回看起始位置 · 共 ${moves.length} 步`
-        : `正在回看第 ${previousPly}/${moves.length} 步 · ${moveLabel(moves[previousPly - 1])}`,
+        ? t("msg.reviewAtStart", { total: moves.length })
+        : t("msg.reviewPly", { ply: previousPly, total: moves.length, move: moveLabel(moves[previousPly - 1], t) }),
     );
   };
 
   const reviewNextMove = () => {
     if (reviewPly === null) {
-      setMessage("已经位于最新局面");
+      setMessage(t("msg.atLatest"));
       return;
     }
     const nextPly = reviewPly + 1;
@@ -533,11 +579,13 @@ export default function Home() {
     if (nextPly >= moves.length) {
       setReviewPly(null);
       const latest = moves.at(-1);
-      setMessage(latest ? `已回到当前局面 · 最近一步 ${moveLabel(latest)}` : "已回到当前局面");
+      setMessage(
+        latest ? t("msg.backToCurrent", { move: moveLabel(latest, t) }) : t("msg.backToCurrentPlain"),
+      );
       return;
     }
     setReviewPly(nextPly);
-    setMessage(`正在回看第 ${nextPly}/${moves.length} 步 · ${moveLabel(moves[nextPly - 1])}`);
+    setMessage(t("msg.reviewPly", { ply: nextPly, total: moves.length, move: moveLabel(moves[nextPly - 1], t) }));
   };
 
   const loadStandardPosition = () => {
@@ -556,8 +604,8 @@ export default function Home() {
     setSelectedSquare(null);
     setIsStandardSetup(true);
     setEngineScoreWhite(null);
-    setEvaluation("等待局面");
-    setMessage("已加载标准开局：32 枚棋子就位，白方先走");
+    setEvaluation(t("eval.waiting"));
+    setMessage(t("msg.loadedStandardFull"));
   };
 
   const returnPieceToTray = (square: Square | null) => {
@@ -571,42 +619,45 @@ export default function Home() {
     setIsStandardSetup(false);
     setEngineScoreWhite(null);
     setSelectedSquare(null);
-    if (piece) setMessage(`${piece.color === "w" ? "白" : "黑"}${pieceNames[piece.type]}已放回棋子库`);
+    if (piece)
+      setMessage(
+        t("msg.returnedToTray", { color: t(colorKey(piece.color)), name: t(pieceKey(piece.type)) }),
+      );
   };
 
   return (
     <main className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#" aria-label="逆转棋局首页">
+        <a className="brand" href="#" aria-label={t("brand.homeAria")}>
           <span className="brand-mark"><PieceArt piece={{ color: "b", type: "n" }} className="brand-piece" /></span>
           <span>
-            <strong>逆转棋局</strong>
-            <small>POSITION LAB</small>
+            <strong>{t("brand.name")}</strong>
+            <small>{t("brand.tagline")}</small>
           </span>
         </a>
-        <div className="engine-pill" data-state={engineState}>
-          <span className="pulse" />
-          {engineState === "loading" && "引擎载入中"}
-          {engineState === "ready" && "Stockfish 17.1 已就绪"}
-          {engineState === "thinking" && "Stockfish 正在思考"}
-          {engineState === "error" && "引擎不可用"}
+        <div className="topbar-tools">
+          <div className="engine-pill" data-state={engineState}>
+            <span className="pulse" />
+            {engineState === "loading" && t("engine.loading")}
+            {engineState === "ready" && t("engine.ready")}
+            {engineState === "thinking" && t("engine.thinking")}
+            {engineState === "error" && t("engine.error")}
+          </div>
+          <LanguageToggle />
         </div>
       </header>
 
       <section className="hero">
         <div>
-          <p className="eyebrow">CUSTOM CHESS SCENARIO</p>
-          <h1>摆下残局，<em>推演逆转。</em></h1>
-          <p className="hero-copy">
-            自由布置棋子，指定你希望获胜的一方。AI 会寻找最佳路线，
-            但不会把理论败局伪装成必胜。
-          </p>
+          <p className="eyebrow">{t("hero.eyebrow")}</p>
+          <h1>{t("hero.titleLead")}<em>{t("hero.titleEm")}</em></h1>
+          <p className="hero-copy">{t("hero.copy")}</p>
         </div>
-        <div className="stepper" aria-label="操作步骤">
+        <div className="stepper" aria-label={t("stepper.aria")}>
           {[
-            ["01", "布置棋子"],
-            ["02", "选择阵营"],
-            ["03", "开始推演"],
+            ["01", t("stepper.place")],
+            ["02", t("stepper.side")],
+            ["03", t("stepper.start")],
           ].map(([number, label], index) => (
             <div className={phase === "setup" ? (index === 0 ? "active" : "") : index === 2 ? "active" : ""} key={number}>
               <span>{number}</span>
@@ -623,41 +674,41 @@ export default function Home() {
               <span className={`turn-dot ${currentTurn}`} />
               <strong>
                 {phase === "setup"
-                  ? "摆棋模式"
+                  ? t("turn.setup")
                   : phase === "over"
-                    ? "对局结束"
+                    ? t("turn.over")
                     : currentTurn === winnerColor
-                      ? "AI 回合"
-                      : "你的回合"}
+                      ? t("turn.ai")
+                      : t("turn.you")}
               </strong>
               <small>{message}</small>
             </div>
             <button
               className="flip-board-button"
               onClick={() => setIsFlipped((value) => !value)}
-              aria-label="翻转棋盘视角，仅改变显示方向"
-              title="仅改变棋盘观看方向，不会重置棋局"
+              aria-label={t("flip.aria")}
+              title={t("flip.title")}
             >
               <span className="flip-side-icon" aria-hidden="true">
                 <PieceArt piece={{ color: "w", type: "p" }} className="flip-side-piece" />
                 <b>⇅</b>
                 <PieceArt piece={{ color: "b", type: "p" }} className="flip-side-piece" />
               </span>
-              <span className="flip-label">翻转视角</span>
+              <span className="flip-label">{t("flip.label")}</span>
             </button>
           </div>
 
           {phase === "setup" && (
             <div className="board-preset-bar">
               <span>
-                <strong>选择起始棋盘</strong>
-                <small>之后仍可自由增删、移动棋子</small>
+                <strong>{t("preset.title")}</strong>
+                <small>{t("preset.hint")}</small>
               </span>
-              <div className="setup-presets" aria-label="棋盘预设">
-                <button className="ghost-button" onClick={reset}>空棋盘</button>
+              <div className="setup-presets" aria-label={t("preset.title")}>
+                <button className="ghost-button" onClick={reset}>{t("preset.empty")}</button>
                 <button className="standard-setup-button" onClick={loadStandardPosition}>
                   <PieceArt piece={{ color: "b", type: "p" }} className="preset-piece" />
-                  标准开局
+                  {t("preset.standard")}
                 </button>
               </div>
             </div>
@@ -716,39 +767,39 @@ export default function Home() {
             <div className="board-actions">
               <div className="play-actions">
                 <div className="history-action-group">
-                  <small>改变棋局</small>
+                  <small>{t("action.changeGame")}</small>
                   <div className="history-action-row">
                     <button className="history-button undo-button" disabled={!canUndo} onClick={undoLastTurn}>
                       <span className="history-icon" aria-hidden="true">↶</span>
-                      <span>悔棋</span>
+                      <span>{t("action.undo")}</span>
                     </button>
                     <button className="history-button redo-button" disabled={!canRedo} onClick={redoLastTurn}>
                       <span className="history-icon" aria-hidden="true">↷</span>
-                      <span>恢复</span>
+                      <span>{t("action.redo")}</span>
                     </button>
                   </div>
                 </div>
                 <div className="history-action-group">
-                  <small>回看棋谱</small>
+                  <small>{t("action.review")}</small>
                   <div className="history-action-row">
                     <button className="history-button review-button" disabled={!canReviewBack} onClick={reviewPreviousMove}>
                       <span className="history-icon compact" aria-hidden="true">←</span>
-                      <span>上一步</span>
+                      <span>{t("action.prev")}</span>
                     </button>
                     <button className="history-button review-button" disabled={!canReviewForward} onClick={reviewNextMove}>
-                      <span>下一步</span>
+                      <span>{t("action.next")}</span>
                       <span className="history-icon compact" aria-hidden="true">→</span>
                     </button>
                   </div>
                 </div>
                 <div className="position-reset-actions compact">
-                  <button className="ghost-button" onClick={editAgain}>重摆开局</button>
+                  <button className="ghost-button" onClick={editAgain}>{t("action.resetSetup")}</button>
                   <button className="ghost-button current-position-button" onClick={editFromCurrentPosition}>
-                    从当前局面重摆
+                    {t("action.resetFromCurrent")}
                   </button>
                 </div>
               </div>
-              <span>{reviewPly === null ? "回看不会改变棋局" : `正在回看 ${reviewPly}/${moves.length} 步`}</span>
+              <span>{reviewPly === null ? t("review.idle") : t("review.active", { ply: reviewPly, total: moves.length })}</span>
             </div>
           )}
 
@@ -763,8 +814,8 @@ export default function Home() {
 
         <aside className={`control-panel ${phase}`}>
           <div className="control-heading">
-            <span className="tiny-label">MATCH CONFIGURATION</span>
-            <h2>{phase === "setup" ? "对局设置" : "局面状态"}</h2>
+            <span className="tiny-label">{t("panel.configLabel")}</span>
+            <h2>{phase === "setup" ? t("panel.setupHeading") : t("panel.statusHeading")}</h2>
           </div>
 
           {phase === "setup" && (
@@ -774,25 +825,25 @@ export default function Home() {
                   <PieceArt piece={board[selectedSquare]} className="selection-piece-art" />
                 </span>
                 <div>
-                  <strong>已选中 {selectedSquare}</strong>
-                  <small>点另一个格子移动；有棋子时会交换位置</small>
+                  <strong>{t("select.selected", { square: selectedSquare })}</strong>
+                  <small>{t("select.hint")}</small>
                 </div>
                 <button
                   className="cancel-button"
                   onClick={() => {
                     setSelectedSquare(null);
-                    setMessage("已取消选择，可继续摆棋");
+                    setMessage(t("msg.cancelSelectContinue"));
                   }}
-                  aria-label="取消选择"
+                  aria-label={t("select.cancelAria")}
                 >
                   ×
                 </button>
-                <button className="return-button" onClick={() => returnPieceToTray(selectedSquare)}>放回棋子库</button>
+                <button className="return-button" onClick={() => returnPieceToTray(selectedSquare)}>{t("select.return")}</button>
               </div>
             ) : (
               <div className="edit-hint-card">
-                <strong>摆棋提示</strong>
-                <small>棋子可自由挪动或放回棋子库，手机直接点按即可。</small>
+                <strong>{t("editHint.title")}</strong>
+                <small>{t("editHint.body")}</small>
               </div>
             )
           )}
@@ -808,38 +859,38 @@ export default function Home() {
           {phase === "setup" ? (
             <div className="setup-config">
               <fieldset>
-                <legend>希望哪方获胜？</legend>
+                <legend>{t("config.winnerLegend")}</legend>
                 <div className="segmented">
                   <label className={winnerColor === "w" ? "active" : ""}>
                     <input type="radio" name="winner" value="w" checked={winnerColor === "w"} onChange={() => setWinnerColor("w")} />
-                    <PieceArt piece={{ color: "w", type: "k" }} className="mini-king" /> 白方
+                    <PieceArt piece={{ color: "w", type: "k" }} className="mini-king" /> {t("side.white")}
                   </label>
                   <label className={winnerColor === "b" ? "active" : ""}>
                     <input type="radio" name="winner" value="b" checked={winnerColor === "b"} onChange={() => setWinnerColor("b")} />
-                    <PieceArt piece={{ color: "b", type: "k" }} className="mini-king" /> 黑方
+                    <PieceArt piece={{ color: "b", type: "k" }} className="mini-king" /> {t("side.black")}
                   </label>
                 </div>
-                <p>Stockfish 将控制这一方，并始终寻找最佳着法。</p>
+                <p>{t("config.winnerHelp")}</p>
               </fieldset>
 
               <fieldset>
-                <legend>接下来谁走？</legend>
+                <legend>{t("config.turnLegend")}</legend>
                 <div className="turn-options">
                   <label>
                     <input type="radio" name="turn" checked={turn === "w"} onChange={() => setTurn("w")} />
-                    <span><i className="turn-dot w" />白方先走</span>
+                    <span><i className="turn-dot w" />{t("config.turnWhite")}</span>
                   </label>
                   <label>
                     <input type="radio" name="turn" checked={turn === "b"} onChange={() => setTurn("b")} />
-                    <span><i className="turn-dot b" />黑方先走</span>
+                    <span><i className="turn-dot b" />{t("config.turnBlack")}</span>
                   </label>
                 </div>
               </fieldset>
 
               <fieldset>
                 <div className="range-label">
-                  <legend>AI 思考时间</legend>
-                  <output>{(moveTime / 1000).toFixed(1)} 秒</output>
+                  <legend>{t("config.timeLegend")}</legend>
+                  <output>{t("config.timeValue", { seconds: (moveTime / 1000).toFixed(1) })}</output>
                 </div>
                 <input
                   className="range"
@@ -850,14 +901,14 @@ export default function Home() {
                   value={moveTime}
                   onChange={(event) => setMoveTime(Number(event.target.value))}
                 />
-                <div className="range-scale"><span>快速</span><span>深入</span></div>
+                <div className="range-scale"><span>{t("config.timeFast")}</span><span>{t("config.timeDeep")}</span></div>
               </fieldset>
 
               <div className={`validation ${setupError ? "warning" : "ok"}`}>
                 <span>{setupError ? "!" : "✓"}</span>
                 <div>
-                  <strong>{setupError ? "局面尚未就绪" : "局面可以开始"}</strong>
-                  <small>{setupError || "基础合法性检查已通过"}</small>
+                  <strong>{setupError ? t("validate.notReady") : t("validate.ready")}</strong>
+                  <small>{setupError ? t(setupError) : t("validate.ok")}</small>
                 </div>
               </div>
 
@@ -866,40 +917,40 @@ export default function Home() {
                 disabled={Boolean(setupError) || engineState === "loading" || engineState === "error"}
                 onClick={startGame}
               >
-                开始推演 <span>→</span>
+                {t("start.label")} <span>→</span>
               </button>
             </div>
           ) : (
             <div className="play-status">
               <div className="evaluation-card">
-                <span className="tiny-label">ENGINE EVALUATION</span>
+                <span className="tiny-label">{t("eval.label")}</span>
                 <strong>{evaluation}</strong>
-                <small>评估始终以指定获胜方为视角</small>
+                <small>{t("eval.note")}</small>
               </div>
               <div className="side-summary">
                 <div>
-                  <span>AI 控制</span>
-                  <strong><PieceArt piece={{ color: winnerColor, type: "k" }} className="side-king" />{winnerColor === "w" ? "白方" : "黑方"}</strong>
+                  <span>{t("side.aiControl")}</span>
+                  <strong><PieceArt piece={{ color: winnerColor, type: "k" }} className="side-king" />{t(sideKey(winnerColor))}</strong>
                 </div>
                 <div>
-                  <span>你模拟</span>
-                  <strong><PieceArt piece={{ color: humanColor, type: "k" }} className="side-king" />{humanColor === "w" ? "白方" : "黑方"}</strong>
+                  <span>{t("side.youSimulate")}</span>
+                  <strong><PieceArt piece={{ color: humanColor, type: "k" }} className="side-king" />{t(sideKey(humanColor))}</strong>
                 </div>
               </div>
               <div className="move-list">
-                <div className="move-list-heading"><span>行棋记录</span><small>{moves.length} 步</small></div>
+                <div className="move-list-heading"><span>{t("moves.heading")}</span><small>{t("moves.count", { count: moves.length })}</small></div>
                 {moves.length === 0 ? (
-                  <p>第一步尚未落下</p>
+                  <p>{t("moves.empty")}</p>
                 ) : (
                   <ol>
-                    {moves.map((move, index) => <li key={`${move.lan}-${index}`}><span>{index + 1}</span>{moveLabel(move)}</li>)}
+                    {moves.map((move, index) => <li key={`${move.lan}-${index}`}><span>{index + 1}</span>{moveLabel(move, t)}</li>)}
                   </ol>
                 )}
               </div>
               <div className="position-reset-actions panel-actions">
-                <button className="start-button secondary" onClick={editAgain}>重摆开局 <span>↗</span></button>
+                <button className="start-button secondary" onClick={editAgain}>{t("action.resetSetup")} <span>↗</span></button>
                 <button className="start-button secondary current-position-button" onClick={editFromCurrentPosition}>
-                  从当前局面重摆 <span>↗</span>
+                  {t("action.resetFromCurrent")} <span>↗</span>
                 </button>
               </div>
             </div>
@@ -909,8 +960,8 @@ export default function Home() {
 
       <footer>
         <div className="footer-meta">
-          <span>仅用于自定义残局研究与本地推演</span>
-          <span>Stockfish 17.1 · GPLv3 · 无法保证理论败势逆转</span>
+          <span>{t("footer.note")}</span>
+          <span>{t("footer.engine")}</span>
         </div>
         <DonateButton />
       </footer>

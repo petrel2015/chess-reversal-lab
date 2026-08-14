@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "../lib/i18n";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const alipayQr = `${basePath}/donate/alipay-qr.png`;
@@ -12,9 +13,9 @@ const alipayScheme = `alipays://platformapi/startapp?saId=10000007&qrcode=${enco
 
 type Channel = "alipay" | "wechat";
 
-const channelLabel: Record<Channel, string> = {
-  alipay: "支付宝",
-  wechat: "微信",
+const channelKey: Record<Channel, string> = {
+  alipay: "donate.alipay",
+  wechat: "donate.wechat",
 };
 
 function isMobile() {
@@ -23,6 +24,7 @@ function isMobile() {
 }
 
 export function DonateButton() {
+  const { t } = useI18n();
   const [openChannel, setOpenChannel] = useState<Channel | null>(null);
 
   // 组件挂载后预加载两张二维码到浏览器缓存，模态框打开时瞬间显示（避免"反应一下"）
@@ -66,13 +68,13 @@ export function DonateButton() {
 
   return (
     <div className="donate-section">
-      <span className="donate-tag">请我喝杯咖啡 ￥4.9</span>
+      <span className="donate-tag">{t("donate.tag")}</span>
       <div className="donate-triggers">
         <button type="button" className="donate-trigger alipay" onClick={handleAlipay}>
-          支付宝
+          {t("donate.alipay")}
         </button>
         <button type="button" className="donate-trigger wechat" onClick={handleWechat}>
-          微信
+          {t("donate.wechat")}
         </button>
       </div>
 
@@ -82,27 +84,25 @@ export function DonateButton() {
           onClick={() => setOpenChannel(null)}
           role="dialog"
           aria-modal="true"
-          aria-label={`${channelLabel[openChannel]}赞赏二维码`}
+          aria-label={t("donate.modalAria", { channel: t(channelKey[openChannel]) })}
         >
           <div className="donate-modal" onClick={(event) => event.stopPropagation()}>
             <button
               type="button"
               className="donate-close"
               onClick={() => setOpenChannel(null)}
-              aria-label="关闭"
+              aria-label={t("donate.closeAria")}
             >
               ×
             </button>
-            <h3>请我喝杯咖啡 ￥4.9</h3>
+            <h3>{t("donate.tag")}</h3>
             <img
               className="donate-qr"
               src={openChannel === "alipay" ? alipayQr : wechatQr}
-              alt={`${channelLabel[openChannel]}收款码`}
+              alt={t("donate.qrAlt", { channel: t(channelKey[openChannel]) })}
             />
             <small>
-              {openChannel === "alipay"
-                ? "长按或保存二维码，打开支付宝扫一扫"
-                : "长按或保存二维码，打开微信扫一扫"}
+              {openChannel === "alipay" ? t("donate.alipayHint") : t("donate.wechatHint")}
             </small>
           </div>
         </div>

@@ -1,7 +1,8 @@
 "use client";
 
 import type { Color, PieceSymbol, Square } from "chess.js";
-import { type BoardMap, pieceLimit, pieceNames, pieceOrder } from "../lib/chess-utils";
+import { type BoardMap, pieceLimit, pieceOrder } from "../lib/chess-utils";
+import { colorKey, pieceKey, sideKey, useI18n } from "../lib/i18n";
 import { PieceArt } from "./piece-art";
 
 export type PieceTrayProps = {
@@ -31,6 +32,7 @@ export function PieceTray({
   onReturnPiece,
   onMessage,
 }: PieceTrayProps) {
+  const { t } = useI18n();
   const selectedBoardPiece = selectedSquare ? board[selectedSquare] : null;
   const acceptingReturn =
     phase === "setup" && selectedBoardPiece?.color === color;
@@ -47,7 +49,7 @@ export function PieceTray({
         const piece = source ? board[source] : null;
         if (!piece || phase !== "setup") return;
         if (piece.color !== color) {
-          onMessage(`请将${piece.color === "w" ? "白" : "黑"}棋放回对应颜色的棋子库`);
+          onMessage(t("tray.wrongColor", { color: t(colorKey(piece.color)) }));
           return;
         }
         onReturnPiece(source);
@@ -59,28 +61,31 @@ export function PieceTray({
           className="tray-return-target"
           onClick={() => {
             if (selectedBoardPiece.color !== color) {
-              onMessage(`请将${selectedBoardPiece.color === "w" ? "白" : "黑"}棋放回对应颜色的棋子库`);
+              onMessage(t("tray.wrongColor", { color: t(colorKey(selectedBoardPiece.color)) }));
               return;
             }
             onReturnPiece(selectedSquare);
           }}
           aria-label={
             acceptingReturn
-              ? `将已选中的${selectedBoardPiece.color === "w" ? "白" : "黑"}${pieceNames[selectedBoardPiece.type]}放回棋子库`
-              : `此处是${color === "w" ? "白方" : "黑方"}棋子库，已选棋子不能放在这里`
+              ? t("tray.returnAria", {
+                  color: t(colorKey(selectedBoardPiece.color)),
+                  name: t(pieceKey(selectedBoardPiece.type)),
+                })
+              : t("tray.notHereAria", { side: t(sideKey(color)) })
           }
         />
       )}
       <div className="inline-tray-label">
         <span className={`color-dot ${color}`} />
         <span>
-          <strong>{color === "w" ? "白方棋子库" : "黑方棋子库"}</strong>
+          <strong>{t(color === "w" ? "tray.whiteName" : "tray.blackName")}</strong>
           <small>
             {selectedBoardPiece
               ? acceptingReturn
-                ? "点这里放回已选棋子"
-                : "已选棋子属于另一方"
-              : "点按或拖动"}
+                ? t("tray.returnHint")
+                : t("tray.otherSide")
+              : t("tray.tapDrag")}
           </small>
         </span>
       </div>
@@ -98,15 +103,19 @@ export function PieceTray({
                 onSelectPiece(isSelected ? null : { color, type });
                 onMessage(
                   isSelected
-                    ? "已取消选择"
-                    : `已拿起${color === "w" ? "白" : "黑"}${pieceNames[type]}，点击棋盘放置`,
+                    ? t("tray.cancelled")
+                    : t("tray.picked", { color: t(colorKey(color)), name: t(pieceKey(type)) }),
                 );
               }}
               draggable={phase === "setup" && remaining > 0}
               onDragStart={(event) => {
                 event.dataTransfer.setData("application/chess-piece", `${color}${type}`);
               }}
-              aria-label={`${color === "w" ? "白" : "黑"}${pieceNames[type]}，剩余${remaining}枚`}
+              aria-label={t("tray.pieceRemainingAria", {
+                color: t(colorKey(color)),
+                name: t(pieceKey(type)),
+                remaining,
+              })}
             >
               <PieceArt piece={{ color, type }} className="piece-glyph" />
               <span className="piece-count">×{remaining}</span>

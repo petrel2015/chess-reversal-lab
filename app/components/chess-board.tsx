@@ -1,7 +1,8 @@
 "use client";
 
 import type { Color, PieceSymbol, Square } from "chess.js";
-import { type BoardMap, files, pieceNames, ranks } from "../lib/chess-utils";
+import { type BoardMap, files, ranks } from "../lib/chess-utils";
+import { colorKey, pieceKey, useI18n } from "../lib/i18n";
 import { PieceArt } from "./piece-art";
 
 export type ChessBoardProps = {
@@ -37,9 +38,10 @@ export function ChessBoard({
   onMoveSetupPiece,
   onPlacePiece,
 }: ChessBoardProps) {
+  const { t } = useI18n();
   return (
     <div className="board-wrap">
-      <div className="chessboard" role="grid" aria-label="国际象棋棋盘">
+      <div className="chessboard" role="grid" aria-label={t("board.aria")}>
         {shownRanks.flatMap((rank, rankIndex) =>
           shownFiles.map((file, fileIndex) => {
             const square = `${file}${rank}` as Square;
@@ -74,7 +76,15 @@ export function ChessBoard({
                   const data = event.dataTransfer.getData("application/chess-piece");
                   if (data.length === 2) onPlacePiece(square, { color: data[0] as Color, type: data[1] as PieceSymbol });
                 }}
-                aria-label={`${square}${piece ? ` ${piece.color === "w" ? "白" : "黑"}${pieceNames[piece.type]}` : " 空"}`}
+                aria-label={
+                  piece
+                    ? t("board.squarePiece", {
+                        square,
+                        color: t(colorKey(piece.color)),
+                        name: t(pieceKey(piece.type)),
+                      })
+                    : t("board.squareEmpty", { square })
+                }
               >
                 {fileIndex === 0 && <span className="rank-label">{rank}</span>}
                 {rankIndex === 7 && <span className="file-label">{file}</span>}
