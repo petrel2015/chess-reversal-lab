@@ -47,3 +47,6 @@ next-env.d.ts
 
 # editor/tooling state
 /.zcode/
+
+# local security-scan artifacts
+/.mimosa/

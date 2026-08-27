@@ -244,13 +244,14 @@ export default function Home() {
         return describeEnding(chess, locT);
       }
       if (phase === "setup") {
-        return translate(loc, isStandardSetup ? "msg.loadedStandard" : "msg.cleared");
+        if (Object.keys(board).length === 0) return translate(loc, "msg.cleared");
+        return translate(loc, isStandardSetup ? "msg.loadedStandard" : "msg.backToSetup");
       }
       const turnNow = chess?.turn() ?? turn;
       if (turnNow === winnerColor) return translate(loc, "msg.positionLocked");
       return translate(loc, "msg.simulateTurn", { side: translate(loc, sideKey(humanColor)) });
     },
-    [humanColor, isStandardSetup, phase, turn, winnerColor],
+    [board, humanColor, isStandardSetup, phase, turn, winnerColor],
   );
   useEffect(() => {
     setMessage(statusMessage(locale));

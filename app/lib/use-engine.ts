@@ -29,7 +29,6 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 export function useEngine({
   winnerColor,
-  humanColor,
   chessRef,
   moveTime,
   isThinkingTurn,
@@ -89,6 +88,21 @@ export function useEngine({
     worker.postMessage(`go movetime ${moveTime}`);
   }, [chessRef, engineState, moveTime, onMessage, t, winnerColor]);
 
+  // The worker must live for the whole page lifetime. Recreating it (which the
+  // old dep list did on every locale/winner-side change) kills a mid-init
+  // Stockfish WASM compile and can leave the engine stuck in "loading" with no
+  // retry. All changing callbacks are read through refs instead.
+  const tRef = useRef(t);
+  const onMessageRef = useRef(onMessage);
+  const onOutcomeRef = useRef(onOutcome);
+  const updateEvaluationRef = useRef(updateEvaluation);
+  useEffect(() => {
+    tRef.current = t;
+    onMessageRef.current = onMessage;
+    onOutcomeRef.current = onOutcome;
+    updateEvaluationRef.current = updateEvaluation;
+  });
+
   useEffect(() => {
     const worker = new Worker(`${basePath}/engine/stockfish.js`);
     workerRef.current = worker;
@@ -116,31 +130,31 @@ export function useEngine({
         if (!uci || uci === "(none)") {
           activeSearchFenRef.current = null;
           setEngineState("ready");
-          onOutcome({ kind: "nomove" });
+          onOutcomeRef.current({ kind: "nomove" });
           return;
         }
         const searchedFen = activeSearchFenRef.current;
         activeSearchFenRef.current = null;
         if (!searchedFen || chess.fen() !== searchedFen) {
           setEngineState("ready");
-          onOutcome({ kind: "stale", score: pendingScoreRef.current });
+          onOutcomeRef.current({ kind: "stale", score: pendingScoreRef.current });
           return;
         }
         setEngineState("ready");
-        updateEvaluation(pendingScoreRef.current);
-        onOutcome({ kind: "moved", uci });
+        updateEvaluationRef.current(pendingScoreRef.current);
+        onOutcomeRef.current({ kind: "moved", uci });
       }
     };
     worker.onerror = () => {
       setEngineState("error");
-      onMessage(t("msg.engineLoadFailStockfish"));
+      onMessageRef.current(tRef.current("msg.engineLoadFailStockfish"));
     };
     worker.postMessage("uci");
     return () => {
       worker.postMessage("quit");
       worker.terminate();
     };
-  }, [humanColor, onOutcome, onMessage, t, updateEvaluation]);
+  }, []);
 
   useEffect(() => {
     if (isThinkingTurn && engineState === "ready") {
