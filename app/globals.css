@@ -1428,96 +1428,57 @@ footer {
   gap: 12px;
 }
 
-/* 赞赏支持区域 */
-.donate-section {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(212, 175, 55, 0.08), rgba(212, 175, 55, 0.02));
-  border: 1px solid rgba(212, 175, 55, 0.18);
-}
-
-.donate-tag {
-  color: #b9a85e;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.donate-triggers {
-  display: flex;
-  gap: 8px;
-}
-
-.donate-trigger {
-  min-height: 40px;
-  padding: 0 16px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
+/* 赞赏入口：Footer 次要操作，低干扰 */
+.donate-entry {
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  transition: transform 0.12s ease, background 0.12s ease;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: #898c84;
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease;
 }
 
-.donate-trigger:hover {
-  transform: translateY(-1px);
+.donate-entry:hover {
+  color: var(--ink);
+  border-color: #5f6358;
 }
 
-.donate-trigger.alipay {
-  background: #1677ff;
-  color: #fff;
+.donate-entry:focus-visible {
+  outline: 2px solid var(--acid);
+  outline-offset: 3px;
 }
 
-.donate-trigger.alipay:hover {
-  background: #0e6ae8;
-}
-
-.donate-trigger.wechat {
-  background: #07c160;
-  color: #fff;
-}
-
-.donate-trigger.wechat:hover {
-  background: #06a852;
-}
-
-/* 赞赏模态框 */
-.donate-modal-overlay {
+/* 赞赏弹窗：深色弹窗 → 浅色码卡 → 深色码 */
+.donate-overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 16px;
   background: rgba(8, 10, 8, 0.72);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
 
-.donate-modal {
+.donate-dialog {
   position: relative;
-  width: min(340px, calc(100vw - 32px));
-  padding: 28px 24px 24px;
-  border-radius: 18px;
-  background: #14171a;
-  border: 1px solid rgba(212, 175, 55, 0.28);
+  width: min(340px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 26px 22px 22px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   text-align: center;
-}
-
-.donate-modal h3 {
-  margin: 0 0 18px;
-  color: #f0d97a;
-  font-size: 16px;
-  font-weight: 700;
 }
 
 .donate-close {
@@ -1543,20 +1504,77 @@ footer {
   color: #fff;
 }
 
-.donate-qr {
-  display: block;
-  width: 100%;
-  max-width: 260px;
-  height: auto;
-  margin: 0 auto 14px;
-  border-radius: 12px;
+.donate-title {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
 }
 
-.donate-modal small {
-  display: block;
-  color: #7d7d72;
+.donate-subtitle {
+  margin: 0 0 18px;
+  color: var(--muted);
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.7;
+}
+
+/* 渠道切换沿用 lang-toggle 的胶囊视觉 */
+.donate-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  margin-bottom: 18px;
+}
+
+.donate-tabs button {
+  min-height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #a9aca4;
+  font: 600 12px var(--font-noto), sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.donate-tabs button:hover {
+  color: var(--ink);
+}
+
+.donate-tabs button.active {
+  background: var(--acid);
+  color: #11170a;
+}
+
+.donate-tabs button:focus-visible {
+  outline: 2px solid var(--acid);
+  outline-offset: 2px;
+}
+
+/* 浅色码卡：二维码本体始终深色前景 + 白色背景 */
+.donate-qr-card {
+  width: fit-content;
+  margin: 0 auto 14px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.donate-qr {
+  display: block;
+  width: 220px;
+  max-width: 100%;
+  height: auto;
+}
+
+.donate-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 @media (max-width: 1100px) {
@@ -1775,8 +1793,6 @@ footer {
   }
   footer { flex-direction: column; gap: 6px; }
   .footer-meta { flex-direction: column; gap: 6px; }
-  .donate-section { flex-direction: column; gap: 10px; padding: 14px 12px; }
-  .donate-trigger { flex: 1; width: 100%; }
   .turn-banner { gap: 8px; min-width: 0; }
   .turn-banner > div { min-width: 0; }
   .turn-banner strong { font-size: 12px; }

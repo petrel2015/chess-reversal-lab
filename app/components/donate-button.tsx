@@ -1,112 +1,157 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../lib/i18n";
+import {
+  DONATION_CONFIG,
+  createQrModules,
+  paintQrToCanvas,
+  type DonationChannel,
+} from "./donation-qr";
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-const alipayQr = `${basePath}/donate/alipay-qr.png`;
-const wechatQr = `${basePath}/donate/wechat-qr.png`;
+const CHANNELS: DonationChannel[] = ["alipay", "wechat"];
 
-// 支付宝收款码原始 URL（用于 alipays:// 智能唤起）
-const alipayUrl = "https://qr.alipay.com/fkx16432isyyhmx9ttwpi79";
-const alipayScheme = `alipays://platformapi/startapp?saId=10000007&qrcode=${encodeURIComponent(alipayUrl)}`;
-
-type Channel = "alipay" | "wechat";
-
-const channelKey: Record<Channel, string> = {
-  alipay: "donate.alipay",
-  wechat: "donate.wechat",
-};
-
-function isMobile() {
+function isMobileUA() {
   if (typeof navigator === "undefined") return false;
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
 export function DonateButton() {
   const { t } = useI18n();
-  const [openChannel, setOpenChannel] = useState<Channel | null>(null);
+  const [open, setOpen] = useState(false);
+  const [channel, setChannel] = useState<DonationChannel>("alipay");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const entryRef = useRef<HTMLButtonElement>(null);
+  const alipayTabRef = useRef<HTMLButtonElement>(null);
+  // 每次弹窗会话内至多尝试一次支付宝跳转；二维码常驻即天然兜底
+  const openAttemptedRef = useRef(false);
 
-  // 组件挂载后预加载两张二维码到浏览器缓存，模态框打开时瞬间显示（避免"反应一下"）
+  // 弹窗打开：重置会话、移动端支付宝尝试打开官方收款链接、焦点移入弹窗
   useEffect(() => {
-    [alipayQr, wechatQr].forEach((src) => {
-      const img = new Image();
-      img.src = src;
-    });
-  }, []);
+    if (!open) return;
+    openAttemptedRef.current = false;
+    if (isMobileUA()) {
+      window.open(DONATION_CONFIG.alipay.qrContent, "_blank", "noopener");
+      openAttemptedRef.current = true;
+    }
+    alipayTabRef.current?.focus();
+  }, [open]);
 
- // ESC 键关闭模态框
+  // ESC 关闭；关闭时焦点归还入口
   useEffect(() => {
-    if (!openChannel) return;
+    if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenChannel(null);
+      if (event.key === "Escape") setOpen(false);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [openChannel]);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      entryRef.current?.focus();
+    };
+  }, [open]);
 
-  const handleAlipay = () => {
-    if (isMobile()) {
-      // 尝试唤起支付宝 App：记录可见性，1.5s 内未切走说明唤起失败 → 兜底弹二维码
-      const before = document.visibilityState;
-      window.location.href = alipayScheme;
-      window.setTimeout(() => {
-        if (document.visibilityState === before) {
-          setOpenChannel("alipay");
-        }
-      }, 1500);
-    } else {
-      // 桌面端无 alipays scheme，直接弹二维码
-      setOpenChannel("alipay");
+  // 二维码实时生成：弹窗打开后才加载 QR 库并按渠道内容绘制
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    createQrModules(DONATION_CONFIG[channel].qrContent).then((modules) => {
+      if (!cancelled && canvasRef.current) {
+        paintQrToCanvas(canvasRef.current, modules);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, channel]);
+
+  const switchChannel = (next: DonationChannel) => {
+    if (next === channel) return;
+    setChannel(next);
+    if (
+      next === "alipay" &&
+      isMobileUA() &&
+      !openAttemptedRef.current
+    ) {
+      window.open(DONATION_CONFIG.alipay.qrContent, "_blank", "noopener");
+      openAttemptedRef.current = true;
     }
   };
 
-  const handleWechat = () => {
-    // 微信不支持 URL scheme 直接唤起付款，始终展示二维码
-    setOpenChannel("wechat");
-  };
+  const hint = (() => {
+    if (channel === "alipay") {
+      // 手机端支付宝已尝试跳转，二维码常驻兜底
+      if (isMobileUA()) return t("donate.fallbackHint");
+      return t("donate.scanAlipay");
+    }
+    return t("donate.scanWechat");
+  })();
 
   return (
-    <div className="donate-section">
-      <span className="donate-tag">{t("donate.tag")}</span>
-      <div className="donate-triggers">
-        <button type="button" className="donate-trigger alipay" onClick={handleAlipay}>
-          {t("donate.alipay")}
-        </button>
-        <button type="button" className="donate-trigger wechat" onClick={handleWechat}>
-          {t("donate.wechat")}
-        </button>
-      </div>
+    <>
+      <button
+        type="button"
+        ref={entryRef}
+        className="donate-entry"
+        onClick={() => {
+          setChannel("alipay");
+          setOpen(true);
+        }}
+      >
+        {t("donate.entry")}
+      </button>
 
-      {openChannel && (
+      {open && (
         <div
-          className="donate-modal-overlay"
-          onClick={() => setOpenChannel(null)}
+          className="donate-overlay"
           role="dialog"
           aria-modal="true"
-          aria-label={t("donate.modalAria", { channel: t(channelKey[openChannel]) })}
+          aria-label={t("donate.title")}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setOpen(false);
+          }}
         >
-          <div className="donate-modal" onClick={(event) => event.stopPropagation()}>
+          <div className="donate-dialog">
             <button
               type="button"
               className="donate-close"
-              onClick={() => setOpenChannel(null)}
-              aria-label={t("donate.closeAria")}
+              onClick={() => setOpen(false)}
+              aria-label={t("donate.close")}
             >
               ×
             </button>
-            <h3>{t("donate.tag")}</h3>
-            <img
-              className="donate-qr"
-              src={openChannel === "alipay" ? alipayQr : wechatQr}
-              alt={t("donate.qrAlt", { channel: t(channelKey[openChannel]) })}
-            />
-            <small>
-              {openChannel === "alipay" ? t("donate.alipayHint") : t("donate.wechatHint")}
-            </small>
+            <h3 className="donate-title">{t("donate.title")}</h3>
+            <p className="donate-subtitle">{t("donate.subtitle")}</p>
+            <div className="donate-tabs" role="group" aria-label={t("donate.channelGroup")}>
+              {CHANNELS.map((ch) => (
+                <button
+                  key={ch}
+                  type="button"
+                  ref={ch === "alipay" ? alipayTabRef : undefined}
+                  className={ch === channel ? "active" : ""}
+                  aria-pressed={ch === channel}
+                  onClick={() => switchChannel(ch)}
+                >
+                  {ch === "alipay" ? t("donate.alipay") : t("donate.wechat")}
+                </button>
+              ))}
+            </div>
+            <div className="donate-qr-card">
+              <canvas
+                ref={canvasRef}
+                className="donate-qr"
+                role="img"
+                aria-label={t("donate.qrAria", {
+                  channel:
+                    channel === "alipay"
+                      ? t("donate.alipay")
+                      : t("donate.wechat"),
+                })}
+              />
+            </div>
+            <p className="donate-hint">{hint}</p>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

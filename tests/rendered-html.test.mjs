@@ -35,9 +35,8 @@ test("renders the position lab shell", async () => {
   assert.match(html, /aria-label="a8 黑车"/);
   assert.match(html, /aria-label="e1 白王"/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/);
-  assert.match(html, /请我喝杯咖啡 ￥4\.9/);
-  assert.match(html, /支付宝/);
-  assert.match(html, /微信/);
+  assert.match(html, /请作者喝杯咖啡/);
+  assert.doesNotMatch(html, /alipays:\/\//);
 });
 
 test("ships installable iPhone and PWA metadata with correctly sized icons", async () => {
@@ -85,12 +84,8 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.ok(wasm.size > 1_000_000);
   const socialPreview = await stat(new URL("../public/og.png", import.meta.url));
   assert.ok(socialPreview.size > 100_000);
-  const [alipayQr, wechatQr] = await Promise.all([
-    stat(new URL("../public/donate/alipay-qr.png", import.meta.url)),
-    stat(new URL("../public/donate/wechat-qr.png", import.meta.url)),
-  ]);
-  assert.ok(alipayQr.size > 5_000, "alipay QR should be a real PNG");
-  assert.ok(wechatQr.size > 5_000, "wechat QR should be a real PNG");
+  // 赞赏二维码由浏览器端实时生成，不允许仓库内出现静态二维码图片
+  await assert.rejects(access(new URL("../public/donate", import.meta.url)));
   await assert.rejects(access(new URL("../app/_sites-preview/SkeletonPreview.tsx", import.meta.url)));
 
   const [page, css, packageJson, pieces, pagesWorkflow, useEngineSrc, pieceArtSrc, pieceTraySrc, positionDashboardSrc, chessBoardSrc, i18nSrc] = await Promise.all([
