@@ -65,6 +65,10 @@ A live dashboard shows material balance for both sides and a win-chance bar that
 
 [Usage guide](./docs/en/usage.md#read-the-position-dashboard) · [Feature design](./docs/en/features/position-insights.md)
 
+### AI Coach
+
+Open the AI coach drawer from the topbar and ask "why was this move played" in natural language. Configure your own OpenAI-compatible service in-page (Base URL / API key / model — stored only in your browser, requests go directly to the provider). Each question automatically carries the full context of the currently viewed position: FEN, move list, who played the last move, Stockfish's evaluation, and the review position. Quick-question chips and an opt-in per-move auto-brief (off by default) are included.
+
 ### Bilingual Interface
 
 Simplified Chinese and English UI with browser-language detection; your manual choice is remembered. The board itself is language-independent algebraic notation.

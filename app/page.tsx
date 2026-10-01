@@ -33,6 +33,8 @@ import { PositionDashboard } from "./components/position-dashboard";
 import { ChessBoard } from "./components/chess-board";
 import { DonateButton } from "./components/donate-button";
 import { LanguageToggle } from "./components/language-toggle";
+import { AiCoach } from "./components/ai-coach";
+import type { CoachSnapshot } from "./lib/coach-prompt";
 
 type Phase = "setup" | "playing" | "over";
 type StartingPosition = { board: BoardMap; turn: Color; isStandard: boolean };
@@ -125,10 +127,25 @@ export default function Home() {
     outcomeHandlerRef.current = handleEngineOutcome;
   });
 
-  const displayBoard = useMemo(() => {
-    if (reviewPly === null || phase === "setup") return board;
+  // 用户当前正在看的局面（实时或复盘）：同一份重建 Chess 派生 board/FEN/轮走方，
+  // board 供棋盘渲染，FEN 与轮走方供 AI 教练快照使用
+  const displayState = useMemo(() => {
+    if (reviewPly === null || phase === "setup") {
+      const chess = chessRef.current;
+      return {
+        board,
+        fen: chess ? chess.fen() : boardToFen(board, turn),
+        turnToMove: chess ? chess.turn() : turn,
+      };
+    }
     const starting = startingPositionRef.current;
-    if (!starting) return board;
+    if (!starting) {
+      return {
+        board,
+        fen: boardToFen(board, turn),
+        turnToMove: turn,
+      };
+    }
     try {
       const reviewChess = new Chess(
         boardToFen(starting.board, starting.turn, starting.isStandard ? "KQkq" : "-"),
@@ -136,17 +153,67 @@ export default function Home() {
       moves.slice(0, reviewPly).forEach((move) => {
         reviewChess.move({ from: move.from, to: move.to, promotion: move.promotion });
       });
-      return chessToBoard(reviewChess);
+      return {
+        board: chessToBoard(reviewChess),
+        fen: reviewChess.fen(),
+        turnToMove: reviewChess.turn(),
+      };
     } catch {
-      return board;
+      return {
+        board,
+        fen: boardToFen(board, turn),
+        turnToMove: turn,
+      };
     }
-  }, [board, moves, phase, reviewPly]);
+  }, [board, moves, phase, reviewPly, turn]);
+  const displayBoard = displayState.board;
   const displayLastMove =
     reviewPly === null
       ? lastMove
       : reviewPly > 0
         ? { from: moves[reviewPly - 1].from, to: moves[reviewPly - 1].to }
         : null;
+
+  // AI 教练快照：始终描述「正在查看的局面」与进入该局面的那一步
+  const coachViewedPly = reviewPly ?? moves.length;
+  const coachSnapshot = useMemo<CoachSnapshot>(() => {
+    const viewedMove = coachViewedPly > 0 ? moves[coachViewedPly - 1] : null;
+    return {
+      phase,
+      locale,
+      fen: displayState.fen,
+      reviewing: reviewPly !== null,
+      viewedPly: coachViewedPly,
+      totalPlies: moves.length,
+      sanHistory: moves.map((move) => move.san),
+      firstMoveColor: startingPositionRef.current?.turn ?? turn,
+      lastMoveSan: viewedMove?.san ?? null,
+      lastMoveBy: viewedMove
+        ? viewedMove.color === humanColor
+          ? "human"
+          : "engine"
+        : null,
+      turnToMove: displayState.turnToMove,
+      engineSide: winnerColor,
+      humanSide: humanColor,
+      engineScoreWhite: reviewPly === null ? engineScoreWhite : null,
+      endingText:
+        phase === "over" && chessRef.current
+          ? describeEnding(chessRef.current, t)
+          : null,
+    };
+  }, [
+    phase,
+    locale,
+    displayState,
+    reviewPly,
+    coachViewedPly,
+    moves,
+    humanColor,
+    winnerColor,
+    engineScoreWhite,
+    t,
+  ]);
 
   const counts = useMemo(() => {
     const result: Record<Color, Record<PieceSymbol, number>> = {
@@ -645,6 +712,7 @@ export default function Home() {
             {engineState === "error" && t("engine.error")}
           </div>
           <LanguageToggle />
+          <AiCoach snapshot={coachSnapshot} />
         </div>
       </header>
 

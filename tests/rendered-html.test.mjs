@@ -39,6 +39,16 @@ test("renders the position lab shell", async () => {
   assert.doesNotMatch(html, /alipays:\/\//);
 });
 
+test("renders the AI coach entry in the topbar shell", async () => {
+  const response = await render();
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  // 入口按钮随首屏 SSR 输出；抽屉本体在打开后才渲染
+  assert.match(html, /class="coach-entry"[^>]*aria-label="打开 AI 教练"/);
+  assert.match(html, /🧠 AI 教练/);
+  assert.doesNotMatch(html, /coach-overlay/, "抽屉初始应保持关闭");
+});
+
 test("ships installable iPhone and PWA metadata with correctly sized icons", async () => {
   const manifest = JSON.parse(
     await readFile(new URL("../public/site.webmanifest", import.meta.url), "utf8"),
@@ -167,7 +177,9 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /const redoLastTurn =/);
   assert.match(page, /const reviewPreviousMove =/);
   assert.match(page, /const reviewNextMove =/);
-  assert.match(page, /const displayBoard = useMemo/);
+  // 复盘重建的 memo（board + FEN + 轮走方同源派生），displayBoard 仍是其派生视图
+  assert.match(page, /const displayState = useMemo/);
+  assert.match(page, /const displayBoard = displayState\.board;/);
   assert.match(page, /disabled=\{!canRedo\}/);
   assert.match(page, /disabled=\{!canReviewBack\}/);
   assert.match(page, /disabled=\{!canReviewForward\}/);

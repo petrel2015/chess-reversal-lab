@@ -8,7 +8,9 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/); versions are
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- AI coach drawer: a topbar entry opens a right-side slide-in drawer for asking an LLM "why was this move played" in natural language. Users configure their own OpenAI-compatible service in-page (Base URL / API key / model, stored only in the browser's localStorage; requests go directly to the provider with no server relay). Every question automatically carries the full context of the currently viewed position (FEN, complete move list, last-move attribution, Stockfish evaluation, review position), with quick-question chips (explain last move / evaluate position / what should I play) and an opt-in per-move auto-brief toggle (off by default, fires only while the drawer is open).
 
 ## [0.1.0] - 2026-08-27
 
