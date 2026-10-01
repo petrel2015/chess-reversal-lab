@@ -41,12 +41,14 @@ export function loadCoachSettings(): CoachSettings {
   }
 }
 
-export function saveCoachSettings(settings: CoachSettings): void {
-  if (typeof window === "undefined") return;
+// 返回是否写入成功：隐私模式 / 存储被禁用时失败，调用方需向用户提示
+export function saveCoachSettings(settings: CoachSettings): boolean {
+  if (typeof window === "undefined") return false;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    return true;
   } catch {
-    // 忽略写入失败（隐私模式等）
+    return false;
   }
 }
 

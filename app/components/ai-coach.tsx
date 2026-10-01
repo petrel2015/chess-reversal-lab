@@ -43,6 +43,14 @@ export function AiCoach({ snapshot }: { snapshot: CoachSnapshot }) {
   const [error, setError] = useState<{ key: string; detail?: string } | null>(
     null,
   );
+  // 设置页「测试连接」结果：ok/error 消息直接展示给用户，出错不再静默
+  const [testResult, setTestResult] = useState<
+    | { status: "testing" }
+    | { status: "ok" }
+    | { status: "error"; message: string; detail?: string }
+    | null
+  >(null);
+  const [storageWarning, setStorageWarning] = useState(false);
   const entryRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const baseUrlInputRef = useRef<HTMLInputElement>(null);
@@ -191,8 +199,35 @@ export function AiCoach({ snapshot }: { snapshot: CoachSnapshot }) {
       autoBrief: draft.autoBrief,
     };
     setSettings(next);
-    saveCoachSettings(next);
+    setStorageWarning(!saveCoachSettings(next));
     setView("chat");
+  };
+
+  // 用表单里的草稿值（而非已保存值）发一个最小请求，立即验证配置可用性
+  const testConnection = async () => {
+    const candidate: CoachSettings = {
+      baseUrl: draft.baseUrl.trim(),
+      apiKey: draft.apiKey.trim(),
+      model: draft.model.trim(),
+      autoBrief: draft.autoBrief,
+    };
+    if (!isCoachConfigured(candidate)) return;
+    setTestResult({ status: "testing" });
+    try {
+      await chatCompletion(candidate, [{ role: "user", content: "ping" }], {
+        maxTokens: 16,
+      });
+      setTestResult({ status: "ok" });
+    } catch (caught) {
+      setTestResult({
+        status: "error",
+        message:
+          caught instanceof CoachError
+            ? t(caught.key)
+            : t("coach.error.badResponse"),
+        detail: caught instanceof CoachError ? caught.detail : undefined,
+      });
+    }
   };
 
   return (
@@ -239,6 +274,7 @@ export function AiCoach({ snapshot }: { snapshot: CoachSnapshot }) {
                   title={t("coach.settings.title")}
                   onClick={() => {
                     setDraft(settings);
+                    setTestResult(null);
                     setView("settings");
                   }}
                 >
@@ -320,6 +356,36 @@ export function AiCoach({ snapshot }: { snapshot: CoachSnapshot }) {
                 <button type="submit" className="coach-save">
                   {t("coach.settings.save")}
                 </button>
+                <div className="coach-test-row">
+                  <button
+                    type="button"
+                    className="coach-test"
+                    disabled={
+                      !isCoachConfigured(draft) || testResult?.status === "testing"
+                    }
+                    onClick={() => void testConnection()}
+                  >
+                    {testResult?.status === "testing"
+                      ? t("coach.settings.testing")
+                      : t("coach.settings.test")}
+                  </button>
+                  {testResult?.status === "ok" && (
+                    <p className="coach-test-result ok" role="status">
+                      {t("coach.test.ok")}
+                    </p>
+                  )}
+                  {testResult?.status === "error" && (
+                    <p className="coach-test-result fail" role="alert">
+                      {testResult.message}
+                      {testResult.detail ? `（${testResult.detail}）` : ""}
+                    </p>
+                  )}
+                  {storageWarning && (
+                    <p className="coach-test-result fail" role="alert">
+                      {t("coach.error.storage")}
+                    </p>
+                  )}
+                </div>
               </form>
             ) : (
               <>
@@ -329,17 +395,24 @@ export function AiCoach({ snapshot }: { snapshot: CoachSnapshot }) {
                   aria-live="polite"
                   aria-label={t("coach.messagesAria")}
                 >
-                  <div className="coach-empty">
-                    <strong>{t("coach.unconfiguredTitle")}</strong>
-                    <p>{t("coach.unconfiguredCopy")}</p>
-                    <button
-                      type="button"
-                      className="coach-cta"
-                      onClick={() => setView("settings")}
-                    >
-                      {t("coach.unconfiguredCta")}
-                    </button>
-                  </div>
+                  {storageWarning && (
+                    <div className="coach-error" role="alert">
+                      <p>{t("coach.error.storage")}</p>
+                    </div>
+                  )}
+                  {messages.length === 0 && !configured && (
+                    <div className="coach-empty">
+                      <strong>{t("coach.unconfiguredTitle")}</strong>
+                      <p>{t("coach.unconfiguredCopy")}</p>
+                      <button
+                        type="button"
+                        className="coach-cta"
+                        onClick={() => setView("settings")}
+                      >
+                        {t("coach.unconfiguredCta")}
+                      </button>
+                    </div>
+                  )}
                   {messages.length === 0 && configured && (
                     <p className="coach-hintline">
                       {snapshot.phase === "setup"

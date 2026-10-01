@@ -1959,6 +1959,55 @@ footer {
   align-self: flex-start;
 }
 
+/* 测试连接：用草稿配置发最小请求，结果就地展示 */
+.coach-test-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coach-test {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 16px;
+  color: #a9aca4;
+  font: 600 12px var(--font-noto), sans-serif;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.coach-test:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--acid);
+}
+
+.coach-test:focus-visible {
+  outline: 2px solid var(--acid);
+  outline-offset: 2px;
+}
+
+.coach-test:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.coach-test-result {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.coach-test-result.ok {
+  color: var(--acid);
+}
+
+.coach-test-result.fail {
+  color: #f29d9d;
+}
+
 @media (max-width: 1100px) {
   .workspace {
     grid-template-columns: minmax(500px, 1fr) 250px;

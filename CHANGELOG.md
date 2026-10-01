@@ -11,6 +11,12 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/); versions are
 ### Added
 
 - AI coach drawer: a topbar entry opens a right-side slide-in drawer for asking an LLM "why was this move played" in natural language. Users configure their own OpenAI-compatible service in-page (Base URL / API key / model, stored only in the browser's localStorage; requests go directly to the provider with no server relay). Every question automatically carries the full context of the currently viewed position (FEN, complete move list, last-move attribution, Stockfish evaluation, review position), with quick-question chips (explain last move / evaluate position / what should I play) and an opt-in per-move auto-brief toggle (off by default, fires only while the drawer is open).
+- "Test connection" button in the settings form: sends a minimal request using the current draft values — shows ✓ on success or the specific failure reason (invalid key / bad endpoint / rate limit / network or CORS) without needing to save first.
+
+### Fixed
+
+- AI coach: the "AI is not configured yet" empty-state card kept showing after saving settings even though the configuration had actually applied; it now swaps to the conversation hint once configured.
+- A failing settings write to the browser's storage (e.g. private mode) is no longer silent — an explicit warning explains the settings will be lost on reload.
 
 ## [0.1.0] - 2026-08-27
 

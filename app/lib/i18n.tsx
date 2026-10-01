@@ -240,6 +240,10 @@ const zh: Record<string, string> = {
   "coach.settings.autoBriefHint":
     "开启后每当引擎走完一步会自动请求一次 1-2 句点评，消耗你的 API 额度；仅在本面板打开时触发。",
   "coach.settings.save": "保存设置",
+  "coach.settings.test": "测试连接",
+  "coach.settings.testing": "正在测试…",
+  "coach.test.ok": "✓ 连接成功，配置可用",
+  "coach.error.storage": "设置无法写入本浏览器存储（可能处于隐私模式），刷新页面后将丢失。",
   "coach.back": "返回对话",
   "coach.error.network": "网络请求失败：请检查网络；若网络正常，可能是该服务商不允许浏览器直连（CORS）。",
   "coach.error.invalidKey": "API Key 无效或没有权限（401/403）。",
@@ -499,6 +503,10 @@ const en: Record<string, string> = {
   "coach.settings.autoBriefHint":
     "When on, each engine move triggers a 1-2 sentence comment request and spends your API quota; only while this panel is open.",
   "coach.settings.save": "Save settings",
+  "coach.settings.test": "Test connection",
+  "coach.settings.testing": "Testing…",
+  "coach.test.ok": "✓ Connected — the settings work",
+  "coach.error.storage": "Settings could not be written to this browser's storage (private mode?); they will be lost on reload.",
   "coach.back": "Back to conversation",
   "coach.error.network":
     "Request failed: check your network; if it works otherwise, the provider may block direct browser calls (CORS).",

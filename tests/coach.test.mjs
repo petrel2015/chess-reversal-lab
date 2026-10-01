@@ -202,6 +202,12 @@ test("设置流程：默认值回填、保存写入 localStorage、自动简评�
   assert.equal(saved.model, "deepseek-chat");
   assert.equal(saved.autoBrief, true);
   assert.equal(document.querySelector(".coach-input-row textarea")?.disabled, false);
+  // 回归：配置完成后「还没有配置 AI」空态必须消失，不能只解禁输入框
+  assert.ok(
+    document.querySelector(".coach-empty") === null,
+    "配置后不应再显示未配置空态",
+  );
+  assert.ok(document.querySelector(".coach-hintline"), "应显示对话提示行");
 });
 
 test("问答流程：请求打到用户配置的端点，携带局面上下文与鉴权头", async () => {
@@ -323,6 +329,69 @@ test("请求失败：401 映射为友好错误横幅", async () => {
     assert.match(error.textContent, /API Key 无效/);
     return true;
   });
+});
+
+// ---------- 测试连接 ----------
+
+test("测试连接：成功时显示 ✓，且请求使用表单草稿值", async () => {
+  const { window, document, fetchCalls } = await createAppDom({
+    settings: configuredSettings(),
+  });
+  await openDrawer(document);
+  document.querySelector(".coach-gear")?.click();
+  await waitFor(() => {
+    assert.ok(document.querySelector(".coach-settings"));
+    return true;
+  });
+
+  // 修改 baseUrl 草稿（未保存），测试应打到草稿端点而非已存端点
+  const baseUrlInput = document.querySelectorAll(
+    ".coach-settings input:not([type='checkbox'])",
+  )[0];
+  setControlValue(window, baseUrlInput, "https://draft.example.com/v1");
+
+  const testButton = [...document.querySelectorAll(".coach-settings button")].find(
+    (button) => button.textContent === "测试连接",
+  );
+  assert.ok(testButton && !testButton.disabled, "配置完整时测试按钮应可用");
+  testButton.click();
+  await waitFor(() => {
+    const ok = document.querySelector(".coach-test-result.ok");
+    assert.ok(ok, "应显示连接成功");
+    assert.match(ok.textContent, /✓ 连接成功/);
+    return true;
+  });
+  assert.equal(fetchCalls.length, 1);
+  assert.equal(fetchCalls[0].url, "https://draft.example.com/v1/chat/completions");
+});
+
+test("测试连接：401 时显示无效 Key 的具体错误", async () => {
+  const dom = await createAppDom({ settings: configuredSettings() });
+  dom.window.fetch = async () => ({
+    ok: false,
+    status: 401,
+    json: async () => ({}),
+    text: async () => "",
+  });
+  const { window, document } = dom;
+  await openDrawer(document);
+  document.querySelector(".coach-gear")?.click();
+  await waitFor(() => {
+    assert.ok(document.querySelector(".coach-settings"));
+    return true;
+  });
+  const testButton = [...document.querySelectorAll(".coach-settings button")].find(
+    (button) => button.textContent === "测试连接",
+  );
+  testButton?.click();
+  await waitFor(() => {
+    const fail = document.querySelector(".coach-test-result.fail");
+    assert.ok(fail, "应显示失败原因");
+    assert.match(fail.textContent, /API Key 无效/);
+    return true;
+  });
+  // 测试失败不应打断表单，仍可保存
+  assert.ok(document.querySelector(".coach-save"), "设置表单应保留");
 });
 
 // ---------- 关闭行为与文案 ----------
