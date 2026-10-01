@@ -70,13 +70,12 @@ async function createAppDom({
   const fetchCalls = [];
   window.fetch = async (url, init) => {
     fetchCalls.push({ url: String(url), init });
+    const payload = { choices: [{ message: { content: ASSISTANT_REPLY } }] };
     return {
       ok: true,
       status: 200,
-      json: async () => ({
-        choices: [{ message: { content: ASSISTANT_REPLY } }],
-      }),
-      text: async () => "",
+      json: async () => payload,
+      text: async () => JSON.stringify(payload),
     };
   };
 
@@ -392,6 +391,34 @@ test("测试连接：401 时显示无效 Key 的具体错误", async () => {
   });
   // 测试失败不应打断表单，仍可保存
   assert.ok(document.querySelector(".coach-save"), "设置表单应保留");
+});
+
+test("测试连接：GLM 推理模型空 content（仅 reasoning）也视为连通成功", async () => {
+  const dom = await createAppDom({ settings: configuredSettings() });
+  const payload = {
+    choices: [{ message: { content: "", reasoning_content: "……" } }],
+  };
+  dom.window.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => payload,
+    text: async () => JSON.stringify(payload),
+  });
+  const { document } = dom;
+  await openDrawer(document);
+  document.querySelector(".coach-gear")?.click();
+  await waitFor(() => {
+    assert.ok(document.querySelector(".coach-settings"));
+    return true;
+  });
+  const testButton = [...document.querySelectorAll(".coach-settings button")].find(
+    (button) => button.textContent === "测试连接",
+  );
+  testButton?.click();
+  await waitFor(() => {
+    assert.ok(document.querySelector(".coach-test-result.ok"), "空 content 应算连通成功");
+    return true;
+  });
 });
 
 // ---------- 关闭行为与文案 ----------

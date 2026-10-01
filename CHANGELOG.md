@@ -12,6 +12,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/); versions are
 
 - AI coach drawer: a topbar entry opens a right-side slide-in drawer for asking an LLM "why was this move played" in natural language. Users configure their own OpenAI-compatible service in-page (Base URL / API key / model, stored only in the browser's localStorage; requests go directly to the provider with no server relay). Every question automatically carries the full context of the currently viewed position (FEN, complete move list, last-move attribution, Stockfish evaluation, review position), with quick-question chips (explain last move / evaluate position / what should I play) and an opt-in per-move auto-brief toggle (off by default, fires only while the drawer is open).
 - "Test connection" button in the settings form: sends a minimal request using the current draft values — shows ✓ on success or the specific failure reason (invalid key / bad endpoint / rate limit / network or CORS) without needing to save first.
+- Zhipu GLM Coding Plan compatibility: reasoning models (GLM-5.3-FlashX etc.) fall back to `reasoning_content` when `content` is empty; "test connection" treats HTTP 200 with a valid shape as connected (reasoning models may return empty content under a small `max_tokens`); an OpenAI Response-protocol endpoint (e.g. Zhipu `/api/v1`) gets a targeted fix-the-URL hint; unreadable responses now carry a raw snippet for debugging.
 
 ### Fixed
 

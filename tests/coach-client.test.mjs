@@ -14,11 +14,12 @@ const SETTINGS = {
 };
 
 function jsonResponse(content, extra = {}) {
+  const payload = { choices: [{ message: { content } }], ...extra };
   return {
     ok: true,
     status: 200,
-    json: async () => ({ choices: [{ message: { content } }], ...extra }),
-    text: async () => JSON.stringify({ choices: [{ message: { content } }] }),
+    json: async () => payload,
+    text: async () => JSON.stringify(payload),
   };
 }
 
@@ -112,6 +113,83 @@ test("network failures and unparsable payloads map to friendly keys", async () =
     await assert.rejects(
       chatCompletion(SETTINGS, [{ role: "user", content: "q" }]),
       (error) => error instanceof CoachError && error.key === "coach.error.badResponse",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("reasoning models: empty content falls back to reasoning_content", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    jsonResponse("", {
+      choices: [
+        { message: { content: "", reasoning_content: "  思考链内容  " } },
+      ],
+    });
+  try {
+    const content = await chatCompletion(SETTINGS, [
+      { role: "user", content: "q" },
+    ]);
+    assert.equal(content, "思考链内容");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("empty content is rejected by default but allowed for connection tests", async () => {
+  const originalFetch = globalThis.fetch;
+  const reply = () => jsonResponse("");
+  globalThis.fetch = reply;
+  try {
+    await assert.rejects(
+      chatCompletion(SETTINGS, [{ role: "user", content: "q" }]),
+      (error) => error instanceof CoachError && error.key === "coach.error.badResponse",
+    );
+    const content = await chatCompletion(
+      SETTINGS,
+      [{ role: "user", content: "ping" }],
+      { allowEmptyContent: true },
+    );
+    assert.equal(content, "");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("OpenAI Response protocol payloads get a targeted error", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ id: "resp_1", object: "response", output: [] }),
+    text: async () => JSON.stringify({ id: "resp_1", object: "response", output: [] }),
+  });
+  try {
+    await assert.rejects(
+      chatCompletion(SETTINGS, [{ role: "user", content: "q" }]),
+      (error) => error instanceof CoachError && error.key === "coach.error.responseApi",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("unreadable payloads carry a raw snippet for debugging", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({}),
+    text: async () => "<html>gateway error</html>",
+  });
+  try {
+    await assert.rejects(
+      chatCompletion(SETTINGS, [{ role: "user", content: "q" }]),
+      (error) =>
+        error instanceof CoachError &&
+        error.key === "coach.error.badResponse" &&
+        error.detail.includes("gateway error"),
     );
   } finally {
     globalThis.fetch = originalFetch;

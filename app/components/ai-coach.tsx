@@ -26,7 +26,13 @@ type CoachThreadMessage = {
   kind?: "brief";
 };
 
-const MODEL_SUGGESTIONS = ["gpt-4o-mini", "gpt-4o", "deepseek-chat", "glm-4.6"];
+const MODEL_SUGGESTIONS = [
+  "glm-5.3-flashx",
+  "glm-5.2",
+  "deepseek-chat",
+  "gpt-4o-mini",
+  "gpt-4o",
+];
 // 发给 API 的历史条数上限：讲棋上下文每次都随当前局面重建，无需长历史
 const HISTORY_LIMIT = 8;
 
@@ -214,8 +220,11 @@ export function AiCoach({ snapshot }: { snapshot: CoachSnapshot }) {
     if (!isCoachConfigured(candidate)) return;
     setTestResult({ status: "testing" });
     try {
+      // 200 且结构合法即算连通：推理模型（GLM 等）在小 max_tokens 下
+      // content 可能为空串，不作为失败
       await chatCompletion(candidate, [{ role: "user", content: "ping" }], {
-        maxTokens: 16,
+        maxTokens: 64,
+        allowEmptyContent: true,
       });
       setTestResult({ status: "ok" });
     } catch (caught) {

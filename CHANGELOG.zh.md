@@ -12,6 +12,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 - AI 教练讲棋：顶栏入口打开右侧滑出抽屉，用自然语言向 LLM 提问"为什么这么走"。用户在网页内配置自己的 OpenAI 兼容服务（Base URL / API Key / 模型名，仅存浏览器 localStorage，请求直连服务商、无服务器中转）；每次提问自动携带当前查看局面的完整上下文（FEN、全量着法记录、最后一手归属、Stockfish 评估、复盘位置），支持快捷提问（解释上一步 / 局面评价 / 我该走什么）与可选的"引擎每走一步自动简评"开关（默认关闭，仅在抽屉打开时触发）。
 - 设置页新增「测试连接」按钮：用表单当前草稿值发送一个最小请求，成功显示 ✓，失败给出具体原因（Key 无效 / 端点不存在 / 频率限制 / 网络或 CORS 等），无需先保存即可验证。
+- 智谱 GLM Coding Plan 兼容：推理模型（GLM-5.3-FlashX 等）`content` 为空时回退 `reasoning_content`；「测试连接」把 HTTP 200 且结构合法视为连通（小 `max_tokens` 下推理模型回复可为空）；误填 OpenAI Response 协议端点（如智谱 `/api/v1`）时给出定向改址提示；无法解析的响应附带原始返回片段，便于排查。
 
 ### 修复
 

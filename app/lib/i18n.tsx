@@ -231,7 +231,7 @@ const zh: Record<string, string> = {
   "coach.settings.title": "AI 服务设置",
   "coach.settings.baseUrl": "Base URL",
   "coach.settings.baseUrlHint":
-    "OpenAI 兼容端点，填到 /v1 为止，例如 https://api.deepseek.com/v1",
+    "OpenAI Chat Completions 兼容端点（含版本号），例如 https://open.bigmodel.cn/api/coding/paas/v4（智谱 Coding Plan）或 https://api.deepseek.com/v1",
   "coach.settings.apiKey": "API Key",
   "coach.settings.apiKeyHint":
     "仅保存在本浏览器（localStorage），请求直连你填写的服务商，本站服务器不经手。",
@@ -250,6 +250,8 @@ const zh: Record<string, string> = {
   "coach.error.badUrl": "端点或模型不存在（404）：请检查 Base URL 与模型名。",
   "coach.error.rate": "请求过于频繁或额度不足（429）。",
   "coach.error.server": "服务商暂时不可用，请稍后再试。",
+  "coach.error.responseApi":
+    "该端点是 OpenAI Response 协议，不是 Chat Completions：请改填兼容地址（智谱用 https://open.bigmodel.cn/api/coding/paas/v4）。",
   "coach.error.badResponse": "服务商返回了无法解析的内容。",
   // piece tray
   "tray.wrongColor": "请将{color}棋放回对应颜色的棋子库",
@@ -494,7 +496,7 @@ const en: Record<string, string> = {
   "coach.settings.title": "AI service settings",
   "coach.settings.baseUrl": "Base URL",
   "coach.settings.baseUrlHint":
-    "OpenAI-compatible endpoint, up to /v1 — e.g. https://api.deepseek.com/v1",
+    "An OpenAI Chat Completions compatible endpoint (with version), e.g. https://open.bigmodel.cn/api/coding/paas/v4 (Zhipu Coding Plan) or https://api.deepseek.com/v1",
   "coach.settings.apiKey": "API key",
   "coach.settings.apiKeyHint":
     "Stored only in this browser (localStorage); requests go directly to your provider, never through this site's server.",
@@ -514,6 +516,8 @@ const en: Record<string, string> = {
   "coach.error.badUrl": "Endpoint or model not found (404): check the Base URL and model name.",
   "coach.error.rate": "Too many requests or quota exhausted (429).",
   "coach.error.server": "Provider is temporarily unavailable; try again later.",
+  "coach.error.responseApi":
+    "This endpoint speaks the OpenAI Response protocol, not Chat Completions — use a compatible base URL (for Zhipu: https://open.bigmodel.cn/api/coding/paas/v4).",
   "coach.error.badResponse": "The provider returned an unreadable response.",
   // piece tray
   "tray.wrongColor": "Return {color} pieces to their own tray",
