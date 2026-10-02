@@ -231,7 +231,7 @@ test("设置流程：默认值回填、保存写入 localStorage、自动简评�
   });
   const inputs = [...document.querySelectorAll(".coach-settings input:not([type='checkbox'])")];
   assert.equal(inputs.length, 3, "baseUrl / apiKey / model 三个输入");
-  assert.equal(inputs[0].value, "https://api.openai.com/v1", "baseUrl 默认值");
+  assert.equal(inputs[0].value, "https://open.bigmodel.cn/api/coding/paas/v4", "baseUrl 默认值");
   assert.equal(inputs[1].type, "password", "apiKey 应为密码框");
 
   setControlValue(window, inputs[1], "sk-mine");

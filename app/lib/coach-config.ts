@@ -10,10 +10,10 @@ export type CoachSettings = {
 };
 
 export const DEFAULT_COACH_SETTINGS: CoachSettings = {
-  baseUrl: "https://api.openai.com/v1",
+  baseUrl: "https://open.bigmodel.cn/api/coding/paas/v4",
   apiKey: "",
-  model: "gpt-4o-mini",
-  // 自动简评默认关闭：开启后引擎每走一步都会发起一次请求，消耗用户自己的额度
+  model: "glm-5.3-flashx",
+  // 自动简评默认关闭：开启后每走一步都会发起一次请求，消耗用户自己的额度
   autoBrief: false,
 };
 

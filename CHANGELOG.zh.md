@@ -20,6 +20,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ### 变更
 
+- 教练默认服务改为智谱 GLM：Base URL 预填 `https://open.bigmodel.cn/api/coding/paas/v4`（智谱 Coding Plan），默认模型 `glm-5.3-flashx`；已有配置不受影响，仅需填入 API Key 即可开始使用。
 - 自动简评规则：由"仅抽屉打开时、只评引擎的棋"改为"人机双方每走一步都评，面板收起时也在后台运行（点评累积在对话里）"，开关文案与提示同步更新。
 
 ### 修复

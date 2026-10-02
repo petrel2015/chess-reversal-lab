@@ -20,6 +20,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/); versions are
 
 ### Changed
 
+- Default coach provider is now Zhipu GLM: Base URL prefilled as `https://open.bigmodel.cn/api/coding/paas/v4` (Zhipu Coding Plan) with default model `glm-5.3-flashx`; existing configurations are untouched — just paste an API key to start.
 - Auto-brief rules: instead of "only while the drawer is open, engine moves only", every move by either side now gets a brief, running in the background even when the panel is closed (briefs accumulate in the conversation); the toggle label and hint were updated accordingly.
 
 ### Fixed

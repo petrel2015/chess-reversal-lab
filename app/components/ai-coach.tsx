@@ -450,7 +450,7 @@ export function AiCoach({
                 onChange={(event) =>
                   setDraft({ ...draft, baseUrl: event.target.value })
                 }
-                placeholder="https://api.openai.com/v1"
+                placeholder="https://open.bigmodel.cn/api/coding/paas/v4"
                 inputMode="url"
               />
               <small>{t("coach.settings.baseUrlHint")}</small>
