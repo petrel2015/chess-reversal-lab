@@ -37,7 +37,7 @@ test("system prompt states the app premise and the language rule (zh)", () => {
   assert.match(prompt, /本局执白方/);
   assert.match(prompt, /用户本人执黑方/);
   assert.match(prompt, /FEN/);
-  assert.match(prompt, /始终用简体中文回答/);
+  assert.match(prompt, /思考过程和最终回答都始终只用简体中文/);
 });
 
 test("system prompt is English and names the engine side (en)", () => {
@@ -45,7 +45,7 @@ test("system prompt is English and names the engine side (en)", () => {
   assert.match(prompt, /chess coach/i);
   assert.match(prompt, /Stockfish plays that side \(Black in this game\)/);
   assert.match(prompt, /the user plays White/);
-  assert.match(prompt, /Always answer in English/);
+  assert.match(prompt, /always think and answer in English only/);
   assert.doesNotMatch(prompt, /中文/);
 });
 
@@ -89,6 +89,15 @@ test("brief mode replaces the question with a two-sentence instruction", () => {
   assert.ok(!message.includes("ignored"));
   const en = buildUserMessage(baseSnapshot({ locale: "en" }), "ignored", "brief");
   assert.match(en, /In 1-2 sentences, comment on the move just played/);
+});
+
+test("ask and brief messages both end with the locale's language directive", () => {
+  const ask = buildUserMessage(baseSnapshot(), "为什么走 Nf3？");
+  assert.match(ask, /【语言要求】\n思考过程与最终回答都只用简体中文。$/);
+  const brief = buildUserMessage(baseSnapshot(), "ignored", "brief");
+  assert.match(brief, /【语言要求】\n思考过程与最终回答都只用简体中文。$/);
+  const en = buildUserMessage(baseSnapshot({ locale: "en" }), "Why Nf3?");
+  assert.match(en, /\[Language\]\nThink and answer in English only\.$/);
 });
 
 test("setup phase describes the board without a move list", () => {

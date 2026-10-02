@@ -50,7 +50,8 @@ export function buildSystemPrompt(snapshot: CoachSnapshot): string {
       "- 回答先给结论，再给一两个简短的变化说明（如 12...Qg4! 威胁 Qxg2）。",
       "- 局面以上下文中给出的 FEN 为准，不要凭空假设棋子位置；不确定时明确说明。",
       "- 语言简洁，不要长篇开场白，不要重复用户的问题。",
-      "- 始终用简体中文回答。",
+      "- 界面语言是简体中文：无论提问用什么语言，思考过程和最终回答都" +
+        "始终只用简体中文，不要夹杂英文句子。",
     ].join("\n");
   }
   return [
@@ -65,7 +66,8 @@ export function buildSystemPrompt(snapshot: CoachSnapshot): string {
     "- Lead with the conclusion, then one or two short variations (e.g. 12...Qg4! threatens Qxg2).",
     "- Trust the FEN given in the context; never invent piece placement. Say so when unsure.",
     "- Be concise: no long preambles, no restating the question.",
-    "- Always answer in English.",
+    "- The UI language is English: no matter what language the question is " +
+      "written in, always think and answer in English only.",
   ].join("\n");
 }
 
@@ -124,7 +126,13 @@ export function buildUserMessage(
         : "In 1-2 sentences, comment on the move just played (by either side). Do not expand into long variations."
       : question;
 
-  return `${lines.join("\n")}\n\n${zh ? "【用户提问】" : "[Question]"}\n${questionText}`;
+  // 最后一行重申语言约束：离生成最近的位置对输出语言影响最强，
+  // 同时覆盖推理模型的思考过程（否则思考常默认用英文）
+  const languageDirective = zh
+    ? "【语言要求】\n思考过程与最终回答都只用简体中文。"
+    : "[Language]\nThink and answer in English only.";
+
+  return `${lines.join("\n")}\n\n${zh ? "【用户提问】" : "[Question]"}\n${questionText}\n\n${languageDirective}`;
 }
 
 function sideName(locale: Locale, color: "w" | "b"): string {

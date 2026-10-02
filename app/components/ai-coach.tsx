@@ -237,7 +237,9 @@ export function AiCoach({
       try {
         const reply = await chatCompletionStream(settings, payload, {
           signal: controller.signal,
-          maxTokens: mode === "brief" ? 220 : undefined,
+          // 推理模型的思考过程同样消耗 max_tokens：额度太小（如此前的 220）时
+          // 思考吃光额度、正文为空，英文思考会被当作回复展示，故放宽到 1024
+          maxTokens: mode === "brief" ? 1024 : undefined,
           onReasoning: (delta) =>
             setStream((current) =>
               current ? { ...current, reasoning: current.reasoning + delta } : current,

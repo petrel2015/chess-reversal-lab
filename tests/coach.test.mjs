@@ -343,7 +343,8 @@ test("自动简评：每步触发（引擎与用户的棋都评）；面板关�
   window.__advanceCoachSnapshot?.();
   await waitFor(() => assert.ok(fetchCalls.length === 1));
   const body = JSON.parse(fetchCalls[0].init.body);
-  assert.equal(body.max_tokens, 220, "简评应限制输出长度");
+  // 推理模型思考也消耗 max_tokens：额度需覆盖思考 + 简短正文
+  assert.equal(body.max_tokens, 1024, "简评应给思考留出额度");
   assert.equal(body.stream, true);
   assert.match(body.messages.at(-1).content, /请用 1-2 句话点评/);
 
@@ -541,7 +542,8 @@ test("Enter 发送 / Shift+Enter 换行；en 文案跟随", async () => {
   );
   await waitFor(() => assert.ok(assistantMessages(document).length === 1));
   const body = JSON.parse(fetchCalls[0].init.body);
-  assert.match(body.messages[0].content, /Always answer in English/);
+  assert.match(body.messages[0].content, /always think and answer in English only/);
+  assert.match(body.messages.at(-1).content, /\[Language\]\nThink and answer in English only\./);
 });
 
 // ---------- 流式思考块与 Markdown ----------
