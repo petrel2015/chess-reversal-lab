@@ -33,7 +33,8 @@ import { PositionDashboard } from "./components/position-dashboard";
 import { ChessBoard } from "./components/chess-board";
 import { DonateButton } from "./components/donate-button";
 import { LanguageToggle } from "./components/language-toggle";
-import { AiCoach } from "./components/ai-coach";
+import { AiCoach, AiCoachEntry } from "./components/ai-coach";
+import { useMediaQuery } from "./lib/use-media-query";
 import type { CoachSnapshot } from "./lib/coach-prompt";
 
 type Phase = "setup" | "playing" | "over";
@@ -55,6 +56,9 @@ export default function Home() {
   const [moveTime, setMoveTime] = useState(1200);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isStandardSetup, setIsStandardSetup] = useState(true);
+  // AI 教练面板：宽屏停靠为工作区第三列，窄屏为抽屉；聊天记录常驻不随开合丢失
+  const [coachOpen, setCoachOpen] = useState(false);
+  const coachDocked = useMediaQuery("(min-width: 1240px)");
   const chessRef = useRef<Chess | null>(null);
   const startingPositionRef = useRef<StartingPosition | null>(null);
   const outcomeHandlerRef = useRef<(outcome: EngineOutcome) => void>(() => {});
@@ -712,7 +716,11 @@ export default function Home() {
             {engineState === "error" && t("engine.error")}
           </div>
           <LanguageToggle />
-          <AiCoach snapshot={coachSnapshot} />
+          <AiCoachEntry
+            open={coachOpen}
+            docked={coachDocked}
+            onToggle={() => setCoachOpen((value) => !value)}
+          />
         </div>
       </header>
 
@@ -736,7 +744,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="workspace">
+      <section className={`workspace${coachOpen && coachDocked ? " with-coach" : ""}`}>
         <div className="board-column">
           <div className="turn-banner">
             <div>
@@ -1025,6 +1033,13 @@ export default function Home() {
             </div>
           )}
         </aside>
+
+        <AiCoach
+          snapshot={coachSnapshot}
+          open={coachOpen}
+          docked={coachDocked}
+          onClose={() => setCoachOpen(false)}
+        />
       </section>
 
       <footer>

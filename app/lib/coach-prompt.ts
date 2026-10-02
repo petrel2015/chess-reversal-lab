@@ -120,8 +120,8 @@ export function buildUserMessage(
   const questionText =
     mode === "brief"
       ? zh
-        ? "请用 1-2 句话点评引擎刚走的这一步棋，不要展开长变化。"
-        : "In 1-2 sentences, comment on the move the engine just played. Do not expand into long variations."
+        ? "请用 1-2 句话点评刚走的这一步棋（无论哪方走的），不要展开长变化。"
+        : "In 1-2 sentences, comment on the move just played (by either side). Do not expand into long variations."
       : question;
 
   return `${lines.join("\n")}\n\n${zh ? "【用户提问】" : "[Question]"}\n${questionText}`;

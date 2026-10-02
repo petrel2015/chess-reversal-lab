@@ -1,7 +1,8 @@
-// AI 教练（讲棋抽屉）测试套件
-// 覆盖：入口/抽屉交互、未配置空态、设置保存与 localStorage 回读、
-// stub fetch 的问答流程与请求形状、快捷提问、自动简评触发与抑制、
-// ESC/遮罩关闭与焦点归还、en 文案、coach 键集对齐与合同断言。
+// AI 教练（讲棋面板）测试套件
+// 覆盖：入口/面板交互、未配置空态、设置保存与 localStorage 回读、
+// stub fetch 的流式问答（SSE 增量 / 思考块 / Markdown）、请求形状、快捷提问、
+// 自动简评触发（面板关闭也评、用户与引擎的棋都评）、ESC/遮罩关闭与焦点归还、
+// en 文案、coach 键集对齐与合同断言。
 //
 // 注意：断言 DOM 节点「不存在」时必须先转布尔（assert.ok(node === null)），
 // 不能直接 assert.equal(node, null)——React 提交前元素仍在的竞态窗口里，
@@ -20,6 +21,62 @@ const DESKTOP_UA =
 
 const SETTINGS_KEY = "coach.settings.v1";
 const ASSISTANT_REPLY = "这是一步好棋：出象控制 c6 马，同时保持中心紧张。";
+
+// ---------- SSE / JSON 响应 stub ----------
+
+// 把完整文本拆成多个 SSE 增量（reasoning 先行），模拟 OpenAI 兼容流式返回
+function sseChunks(fullText, { reasoning = "" } = {}) {
+  const split = (text) => text.match(/.{1,2}/gsu) ?? [];
+  const events = [];
+  for (const piece of split(reasoning)) {
+    events.push(
+      `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: piece } }] })}\n\n`,
+    );
+  }
+  for (const piece of split(fullText)) {
+    events.push(
+      `data: ${JSON.stringify({ choices: [{ delta: { content: piece } }] })}\n\n`,
+    );
+  }
+  events.push("data: [DONE]\n\n");
+  return events;
+}
+
+function sseResponse(events, { status = 200, delay = 0 } = {}) {
+  const encoder = new TextEncoder();
+  const chunks = events.map((event) => encoder.encode(event));
+  let index = 0;
+  return {
+    ok: status < 400,
+    status,
+    headers: new Map([["content-type", "text/event-stream"]]),
+    body: {
+      getReader() {
+        return {
+          read: async () => {
+            if (delay > 0) {
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+            return index < chunks.length
+              ? { done: false, value: chunks[index++] }
+              : { done: true, value: undefined };
+          },
+          releaseLock() {},
+        };
+      },
+    },
+  };
+}
+
+function jsonResponse(payload, { status = 200 } = {}) {
+  return {
+    ok: status < 400,
+    status,
+    headers: new Map([["content-type", "application/json"]]),
+    json: async () => payload,
+    text: async () => JSON.stringify(payload),
+  };
+}
 
 // ---------- 打包与 jsdom 脚手架（沿用 donation.test.mjs 的做法） ----------
 
@@ -66,17 +123,11 @@ async function createAppDom({
   }
   window.MessageChannel = undefined;
 
-  // 拦截浏览器直连的 chat/completions 请求
+  // 拦截浏览器直连的 chat/completions 请求：默认回 SSE 流式增量
   const fetchCalls = [];
   window.fetch = async (url, init) => {
     fetchCalls.push({ url: String(url), init });
-    const payload = { choices: [{ message: { content: ASSISTANT_REPLY } }] };
-    return {
-      ok: true,
-      status: 200,
-      json: async () => payload,
-      text: async () => JSON.stringify(payload),
-    };
+    return sseResponse(sseChunks(ASSISTANT_REPLY));
   };
 
   const script = window.document.createElement("script");
@@ -121,9 +172,9 @@ async function openDrawer(document) {
   const entry = await getEntry(document);
   entry.click();
   return waitFor(() => {
-    const overlay = document.querySelector(".coach-overlay");
-    assert.ok(overlay, "drawer should open");
-    return overlay;
+    const panel = document.querySelector(".coach-panel.open");
+    assert.ok(panel, "drawer should open");
+    return panel;
   });
 }
 
@@ -154,7 +205,7 @@ test("顶栏入口默认中文文案；未配置时抽屉展示空态并禁用�
   const { document, fetchCalls } = await createAppDom();
   const entry = await getEntry(document);
   assert.equal(entry.textContent, "🧠 AI 教练");
-  assert.equal(document.querySelector(".coach-overlay"), null);
+  assert.ok(document.querySelector(".coach-panel.open") === null, "面板初始关闭");
   assert.equal(fetchCalls.length, 0);
 
   await openDrawer(document);
@@ -237,6 +288,7 @@ test("问答流程：请求打到用户配置的端点，携带局面上下文�
   assert.equal(init.headers.Authorization, "Bearer sk-test");
   const body = JSON.parse(init.body);
   assert.equal(body.model, "test-model");
+  assert.equal(body.stream, true, "对话请求应开启流式");
   assert.equal(body.messages[0].role, "system");
   assert.match(body.messages[0].content, /国际象棋教练/);
   const finalUser = body.messages.at(-1);
@@ -279,34 +331,34 @@ test("快捷提问：解释上一步按钮发送包含 SAN 的提问", async () 
   assert.match(body.messages.at(-1).content, /为什么走 Nf3/);
 });
 
-test("自动简评：开启后引擎走棋触发一次短评；抽屉关闭时不触发", async () => {
-  // 抽屉打开状态下推进快照
-  const openCase = await createAppDom({
+test("自动简评：每步触发（引擎与用户的棋都评）；面板关闭也后台评", async () => {
+  const { window, document, fetchCalls } = await createAppDom({
     settings: configuredSettings({ autoBrief: true }),
   });
-  await openDrawer(openCase.document);
-  await new Promise((resolve) => setTimeout(resolve, 150)); // 打开后仅对齐，不请求
-  assert.equal(openCase.fetchCalls.length, 0, "打开抽屉本身不应发起简评");
-  openCase.window.__advanceCoachSnapshot?.();
-  await waitFor(() => assert.ok(openCase.fetchCalls.length === 1));
-  await waitFor(() => {
-    const brief = openCase.document.querySelector(".coach-msg.assistant.brief");
-    assert.ok(brief, "简评消息应渲染");
-    assert.ok(openCase.document.querySelector(".coach-brief-tag"));
-    return true;
-  });
-  const body = JSON.parse(openCase.fetchCalls[0].init.body);
+  await getEntry(document);
+  await new Promise((resolve) => setTimeout(resolve, 150)); // 首次对齐，不请求
+  assert.equal(fetchCalls.length, 0, "打开页面本身不应发起简评");
+
+  // 面板保持关闭：引擎走 Bb5 → 后台简评
+  window.__advanceCoachSnapshot?.();
+  await waitFor(() => assert.ok(fetchCalls.length === 1));
+  const body = JSON.parse(fetchCalls[0].init.body);
   assert.equal(body.max_tokens, 220, "简评应限制输出长度");
+  assert.equal(body.stream, true);
   assert.match(body.messages.at(-1).content, /请用 1-2 句话点评/);
 
-  // 抽屉关闭时不烧 token
-  const closedCase = await createAppDom({
-    settings: configuredSettings({ autoBrief: true }),
+  // 用户的棋也触发简评
+  window.__advanceCoachSnapshot?.({ lastMoveSan: "a6", lastMoveBy: "human" });
+  await waitFor(() => assert.ok(fetchCalls.length === 2));
+
+  // 打开面板可见累积的简评消息
+  await openDrawer(document);
+  await waitFor(() => {
+    const briefs = document.querySelectorAll(".coach-msg.assistant.brief");
+    assert.ok(briefs.length === 2, "两条简评应累积渲染");
+    assert.ok(document.querySelector(".coach-brief-tag"));
+    return true;
   });
-  await getEntry(closedCase.document);
-  closedCase.window.__advanceCoachSnapshot?.();
-  await new Promise((resolve) => setTimeout(resolve, 150));
-  assert.equal(closedCase.fetchCalls.length, 0, "抽屉关闭不应发起简评请求");
 });
 
 test("请求失败：401 映射为友好错误横幅", async () => {
@@ -348,6 +400,12 @@ test("测试连接：成功时显示 ✓，且请求使用表单草稿值", asyn
     ".coach-settings input:not([type='checkbox'])",
   )[0];
   setControlValue(window, baseUrlInput, "https://draft.example.com/v1");
+
+  // 测试连接走非流式 chatCompletion，需 JSON 形状的响应
+  window.fetch = async (url, init) => {
+    fetchCalls.push({ url: String(url), init });
+    return jsonResponse({ choices: [{ message: { content: "pong" } }] });
+  };
 
   const testButton = [...document.querySelectorAll(".coach-settings button")].find(
     (button) => button.textContent === "测试连接",
@@ -433,24 +491,26 @@ test("ESC 关闭抽屉并把焦点归还顶栏入口", async () => {
     new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
   );
   await waitFor(() => {
-    assert.ok(document.querySelector(".coach-overlay") === null);
+    assert.ok(document.querySelector(".coach-panel.open") === null);
     return true;
   });
   assert.equal(document.activeElement, entry, "关闭后焦点应归还入口");
 });
 
-test("点击遮罩关闭抽屉；点击抽屉内部不关闭", async () => {
+test("点击遮罩关闭面板；点击面板内部不关闭", async () => {
   const { window, document } = await createAppDom({
     settings: configuredSettings(),
   });
-  const overlay = await openDrawer(document);
-  document.querySelector(".coach-drawer").dispatchEvent(
+  const panel = await openDrawer(document);
+  document.querySelector(".coach-panel").dispatchEvent(
     new window.MouseEvent("click", { bubbles: true }),
   );
-  assert.ok(document.querySelector(".coach-overlay"), "点内部不应关闭");
-  overlay.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.ok(document.querySelector(".coach-panel.open"), "点内部不应关闭");
+  document.querySelector(".coach-backdrop").dispatchEvent(
+    new window.MouseEvent("click", { bubbles: true }),
+  );
   await waitFor(() => {
-    assert.ok(document.querySelector(".coach-overlay") === null);
+    assert.ok(document.querySelector(".coach-panel.open") === null);
     return true;
   });
 });
@@ -482,6 +542,123 @@ test("Enter 发送 / Shift+Enter 换行；en 文案跟随", async () => {
   await waitFor(() => assert.ok(assistantMessages(document).length === 1));
   const body = JSON.parse(fetchCalls[0].init.body);
   assert.match(body.messages[0].content, /Always answer in English/);
+});
+
+// ---------- 流式思考块与 Markdown ----------
+
+test("流式思考：reasoning 增量走马灯，完成后折叠为「已思考 N 秒」且可展开", async () => {
+  const dom = await createAppDom({ settings: configuredSettings() });
+  dom.window.fetch = async (url, init) => {
+    dom.fetchCalls.push({ url: String(url), init });
+    // 每片延迟供给，确保思考中的走马灯阶段可被轮询观察到
+    return sseResponse(
+      sseChunks(ASSISTANT_REPLY, {
+        reasoning: "先分析中心结构，再检查王的安全，最后比较子力。",
+      }),
+      { delay: 25 },
+    );
+  };
+  const { window, document } = dom;
+  await openDrawer(document);
+  const textarea = document.querySelector(".coach-input-row textarea");
+  setControlValue(window, textarea, "为什么走 Nf3？");
+  submitForm(window, document.querySelector(".coach-input-row"));
+
+  // 思考中：思考块出现，走马灯显示思考尾部
+  await waitFor(() => {
+    assert.ok(document.querySelector(".coach-think"), "思考块应出现");
+    return true;
+  });
+  await waitFor(() => {
+    const marquee = document.querySelector(".coach-think-marquee span");
+    assert.ok(marquee, "走马灯应显示思考尾部");
+    assert.match(marquee.textContent, /最后比较子力/);
+    return true;
+  });
+
+  // 完成后：思考折叠行保留在消息里，正文渲染完整回复
+  await waitFor(() => {
+    const header = document.querySelector(
+      ".coach-msg:not(.pending) .coach-think-header",
+    );
+    assert.ok(header, "完成后思考行应保留");
+    assert.match(header.textContent, /已思考 \d+ 秒/);
+    return true;
+  });
+  assert.match(
+    assistantMessages(document)[0].textContent,
+    /中心紧张/,
+    "正文应完整渲染",
+  );
+
+  // 点开可查看完整思考内容
+  document
+    .querySelector(".coach-msg:not(.pending) .coach-think-header")
+    .click();
+  await waitFor(() => {
+    const body = document.querySelector(".coach-think-body");
+    assert.ok(body && /中心结构/.test(body.textContent), "展开应显示完整推理");
+    return true;
+  });
+});
+
+test("Markdown 渲染：**加粗** 与列表在回复中生效", async () => {
+  const dom = await createAppDom({ settings: configuredSettings() });
+  dom.window.fetch = async (url, init) => {
+    dom.fetchCalls.push({ url: String(url), init });
+    return sseResponse(sseChunks("这是**好棋**！\n\n- 控制中心\n- 保护王"));
+  };
+  const { window, document } = dom;
+  await openDrawer(document);
+  const textarea = document.querySelector(".coach-input-row textarea");
+  setControlValue(window, textarea, "评价一下");
+  submitForm(window, document.querySelector(".coach-input-row"));
+  await waitFor(() => {
+    const strong = document.querySelector(".coach-msg.assistant strong");
+    assert.ok(strong, "加粗应渲染为 strong 而非 ** 字面量");
+    assert.equal(strong.textContent, "好棋");
+    return true;
+  });
+  assert.ok(document.querySelector(".coach-msg.assistant li"), "列表应渲染 li");
+  assert.ok(
+    !assistantMessages(document)[0].textContent.includes("**"),
+    "不应残留 ** 标记",
+  );
+});
+
+test("流式兜底：服务商忽略 stream 返回 JSON 时仍能完成回复", async () => {
+  const dom = await createAppDom({ settings: configuredSettings() });
+  dom.window.fetch = async (url, init) => {
+    dom.fetchCalls.push({ url: String(url), init });
+    return jsonResponse({ choices: [{ message: { content: ASSISTANT_REPLY } }] });
+  };
+  const { window, document } = dom;
+  await openDrawer(document);
+  const textarea = document.querySelector(".coach-input-row textarea");
+  setControlValue(window, textarea, "帮我看看");
+  submitForm(window, document.querySelector(".coach-input-row"));
+  await waitFor(() => assert.ok(assistantMessages(document).length === 1));
+  assert.equal(assistantMessages(document)[0].textContent, ASSISTANT_REPLY);
+});
+
+test("仅返回思考无正文：思考内容作为正文展示（GLM 推理模型兼容）", async () => {
+  const dom = await createAppDom({ settings: configuredSettings() });
+  dom.window.fetch = async (url, init) => {
+    dom.fetchCalls.push({ url: String(url), init });
+    return sseResponse(
+      sseChunks("", { reasoning: "引擎选择 Nf3 是为了控制中心并开发子力。" }),
+    );
+  };
+  const { window, document } = dom;
+  await openDrawer(document);
+  const textarea = document.querySelector(".coach-input-row textarea");
+  setControlValue(window, textarea, "为什么走 Nf3？");
+  submitForm(window, document.querySelector(".coach-input-row"));
+  await waitFor(() => {
+    const message = assistantMessages(document)[0];
+    assert.ok(message && /控制中心/.test(message.textContent), "思考应作为正文展示");
+    return true;
+  });
 });
 
 // ---------- 合同断言（防回退） ----------

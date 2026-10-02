@@ -85,10 +85,10 @@ test("SAN history pairing handles white-first, black-first and partial turns", (
 
 test("brief mode replaces the question with a two-sentence instruction", () => {
   const message = buildUserMessage(baseSnapshot(), "ignored", "brief");
-  assert.match(message, /请用 1-2 句话点评引擎刚走的这一步棋/);
+  assert.match(message, /请用 1-2 句话点评刚走的这一步棋（无论哪方走的）/);
   assert.ok(!message.includes("ignored"));
   const en = buildUserMessage(baseSnapshot({ locale: "en" }), "ignored", "brief");
-  assert.match(en, /In 1-2 sentences, comment on the move the engine just played/);
+  assert.match(en, /In 1-2 sentences, comment on the move just played/);
 });
 
 test("setup phase describes the board without a move list", () => {

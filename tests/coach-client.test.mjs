@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   chatEndpoint,
   chatCompletion,
+  chatCompletionStream,
   CoachError,
 } from "../app/lib/coach-client.ts";
 
@@ -208,6 +209,176 @@ test("aborted requests rethrow the abort error untouched", async () => {
       chatCompletion(SETTINGS, [{ role: "user", content: "q" }]),
       (error) => error.name === "AbortError" && !(error instanceof CoachError),
     );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+// ---------- chatCompletionStream ----------
+
+// 伪 SSE 响应：按给定 Uint8Array 分片供给 reader，可精确模拟跨块边界；
+// signal 中止时下一次 read 以 AbortError 拒绝（对齐真实 fetch 行为）
+function sseStreamResponse(chunks, { status = 200, contentType = "text/event-stream", signal } = {}) {
+  let index = 0;
+  return {
+    ok: status < 400,
+    status,
+    headers: new Map([["content-type", contentType]]),
+    body: {
+      getReader() {
+        return {
+          read: async () => {
+            if (signal?.aborted) {
+              const error = new Error("The operation was aborted");
+              error.name = "AbortError";
+              throw error;
+            }
+            return index < chunks.length
+              ? { done: false, value: chunks[index++] }
+              : { done: true, value: undefined };
+          },
+          releaseLock() {},
+        };
+      },
+    },
+  };
+}
+
+const encoder = new TextEncoder();
+const sseEvent = (payload) =>
+  encoder.encode(`data: ${JSON.stringify(payload)}\n\n`);
+
+test("chatCompletionStream parses SSE deltas for content and reasoning", async () => {
+  let captured;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    captured = { url, init };
+    return sseStreamResponse([
+      sseEvent({ choices: [{ delta: { reasoning_content: "思考A" } }] }),
+      sseEvent({ choices: [{ delta: { reasoning_content: "继续" } }] }),
+      sseEvent({ choices: [{ delta: { content: "结论" } }] }),
+      sseEvent({ choices: [{ delta: { content: "：白方稍优" } }] }),
+      encoder.encode("data: [DONE]\n\n"),
+    ]);
+  };
+  try {
+    const reasoningCalls = [];
+    const contentCalls = [];
+    const reply = await chatCompletionStream(SETTINGS, [{ role: "user", content: "q" }], {
+      onReasoning: (delta) => reasoningCalls.push(delta),
+      onContent: (delta) => contentCalls.push(delta),
+    });
+    assert.equal(reply.content, "结论：白方稍优");
+    assert.equal(reply.reasoning, "思考A继续");
+    assert.deepEqual(reasoningCalls, ["思考A", "继续"]);
+    assert.deepEqual(contentCalls, ["结论", "：白方稍优"]);
+    const body = JSON.parse(captured.init.body);
+    assert.equal(body.stream, true, "流式请求应携带 stream: true");
+    assert.equal(captured.url, "https://api.example.com/v1/chat/completions");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("chatCompletionStream reassembles events split across chunk boundaries", async () => {
+  const originalFetch = globalThis.fetch;
+  const fullEvent = encoder.encode(
+    `data: ${JSON.stringify({ choices: [{ delta: { content: "跨越边界的内容" } }] })}\n\n`,
+  );
+  const half = Math.floor(fullEvent.length / 2);
+  globalThis.fetch = async () =>
+    sseStreamResponse([
+      fullEvent.slice(0, half),
+      fullEvent.slice(half),
+      encoder.encode("data: [DONE]\n\n"),
+    ]);
+  try {
+    const contentCalls = [];
+    const reply = await chatCompletionStream(SETTINGS, [{ role: "user", content: "q" }], {
+      onContent: (delta) => contentCalls.push(delta),
+    });
+    assert.equal(reply.content, "跨越边界的内容");
+    assert.deepEqual(contentCalls, ["跨越边界的内容"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("chatCompletionStream falls back to JSON when the provider ignores stream", async () => {
+  const originalFetch = globalThis.fetch;
+  const payload = {
+    choices: [{ message: { content: "非流式回复", reasoning_content: "思考" } }],
+  };
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    headers: new Map([["content-type", "application/json"]]),
+    text: async () => JSON.stringify(payload),
+  });
+  try {
+    const reasoningCalls = [];
+    const contentCalls = [];
+    const reply = await chatCompletionStream(SETTINGS, [{ role: "user", content: "q" }], {
+      onReasoning: (delta) => reasoningCalls.push(delta),
+      onContent: (delta) => contentCalls.push(delta),
+    });
+    assert.equal(reply.content, "非流式回复");
+    assert.equal(reply.reasoning, "思考");
+    assert.deepEqual(reasoningCalls, ["思考"]);
+    assert.deepEqual(contentCalls, ["非流式回复"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("chatCompletionStream maps HTTP errors like the non-stream path", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 401, text: async () => "" });
+  try {
+    await assert.rejects(
+      chatCompletionStream(SETTINGS, [{ role: "user", content: "q" }]),
+      (error) => error instanceof CoachError && error.key === "coach.error.invalidKey",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("chatCompletionStream surfaces in-stream error events", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    sseStreamResponse([
+      encoder.encode(
+        `data: ${JSON.stringify({ error: { message: "rate limited upstream" } })}\n\n`,
+      ),
+    ]);
+  try {
+    await assert.rejects(
+      chatCompletionStream(SETTINGS, [{ role: "user", content: "q" }]),
+      (error) =>
+        error instanceof CoachError &&
+        error.key === "coach.error.server" &&
+        error.detail?.includes("rate limited upstream"),
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("chatCompletionStream rethrows aborts from the read loop", async () => {
+  const originalFetch = globalThis.fetch;
+  const controller = new AbortController();
+  globalThis.fetch = async () =>
+    sseStreamResponse(
+      [sseEvent({ choices: [{ delta: { content: "片段" } }] })],
+      { signal: controller.signal },
+    );
+  try {
+    const promise = chatCompletionStream(SETTINGS, [{ role: "user", content: "q" }], {
+      signal: controller.signal,
+      onContent: () => controller.abort(),
+    });
+    await assert.rejects(promise, (error) => error.name === "AbortError");
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -10,9 +10,17 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/); versions are
 
 ### Added
 
-- AI coach drawer: a topbar entry opens a right-side slide-in drawer for asking an LLM "why was this move played" in natural language. Users configure their own OpenAI-compatible service in-page (Base URL / API key / model, stored only in the browser's localStorage; requests go directly to the provider with no server relay). Every question automatically carries the full context of the currently viewed position (FEN, complete move list, last-move attribution, Stockfish evaluation, review position), with quick-question chips (explain last move / evaluate position / what should I play) and an opt-in per-move auto-brief toggle (off by default, fires only while the drawer is open).
+- AI coach drawer: a topbar entry opens a right-side slide-in drawer for asking an LLM "why was this move played" in natural language. Users configure their own OpenAI-compatible service in-page (Base URL / API key / model, stored only in the browser's localStorage; requests go directly to the provider with no server relay). Every question automatically carries the full context of the currently viewed position (FEN, complete move list, last-move attribution, Stockfish evaluation, review position), with quick-question chips (explain last move / evaluate position / what should I play) and an opt-in per-move auto-brief toggle (off by default).
+- Docked coach panel: on wide screens (≥1240px) the coach becomes a third workspace column beside the board — no backdrop, so you can chat while playing; the conversation persists across open/close. Narrow screens keep the slide-in drawer.
+- Streaming replies with visible thinking: chat now uses SSE streaming; reasoning models (GLM / DeepSeek R series etc.) surface `reasoning_content` as a collapsible "Thought for Ns" row with a live scrolling marquee while thinking — click to expand the full chain of thought. The answer renders incrementally as it streams.
+- Markdown rendering for coach replies (bold, lists, tables, inline code via GFM plus single-newline line breaks), so `**xx**` no longer shows as literal asterisks.
+- Serialized request queue: auto-briefs and manual questions run one at a time instead of aborting each other.
 - "Test connection" button in the settings form: sends a minimal request using the current draft values — shows ✓ on success or the specific failure reason (invalid key / bad endpoint / rate limit / network or CORS) without needing to save first.
 - Zhipu GLM Coding Plan compatibility: reasoning models (GLM-5.3-FlashX etc.) fall back to `reasoning_content` when `content` is empty; "test connection" treats HTTP 200 with a valid shape as connected (reasoning models may return empty content under a small `max_tokens`); an OpenAI Response-protocol endpoint (e.g. Zhipu `/api/v1`) gets a targeted fix-the-URL hint; unreadable responses now carry a raw snippet for debugging.
+
+### Changed
+
+- Auto-brief rules: instead of "only while the drawer is open, engine moves only", every move by either side now gets a brief, running in the background even when the panel is closed (briefs accumulate in the conversation); the toggle label and hint were updated accordingly.
 
 ### Fixed
 

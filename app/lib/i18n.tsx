@@ -215,6 +215,7 @@ const zh: Record<string, string> = {
   "coach.send": "发送",
   "coach.clear": "清空对话",
   "coach.thinking": "正在思考…",
+  "coach.thinkSeconds": "已思考 {seconds} 秒",
   "coach.unconfiguredTitle": "还没有配置 AI",
   "coach.unconfiguredCopy":
     "填入你自己的 OpenAI 兼容服务（Base URL、API Key、模型名），AI 就能结合当前棋局为你讲棋。",
@@ -236,9 +237,9 @@ const zh: Record<string, string> = {
   "coach.settings.apiKeyHint":
     "仅保存在本浏览器（localStorage），请求直连你填写的服务商，本站服务器不经手。",
   "coach.settings.model": "模型",
-  "coach.settings.autoBrief": "引擎每走一步自动简评",
+  "coach.settings.autoBrief": "每走一步自动简评",
   "coach.settings.autoBriefHint":
-    "开启后每当引擎走完一步会自动请求一次 1-2 句点评，消耗你的 API 额度；仅在本面板打开时触发。",
+    "开启后你和 AI 每走一步都会自动请求一次 1-2 句点评，消耗你的 API 额度；面板收起时也在后台评，点评累积在对话里。",
   "coach.settings.save": "保存设置",
   "coach.settings.test": "测试连接",
   "coach.settings.testing": "正在测试…",
@@ -480,6 +481,7 @@ const en: Record<string, string> = {
   "coach.send": "Send",
   "coach.clear": "Clear conversation",
   "coach.thinking": "Thinking…",
+  "coach.thinkSeconds": "Thought for {seconds}s",
   "coach.unconfiguredTitle": "AI is not configured yet",
   "coach.unconfiguredCopy":
     "Fill in your own OpenAI-compatible service (Base URL, API key, model) and the AI will explain the game using the live position.",
@@ -501,9 +503,9 @@ const en: Record<string, string> = {
   "coach.settings.apiKeyHint":
     "Stored only in this browser (localStorage); requests go directly to your provider, never through this site's server.",
   "coach.settings.model": "Model",
-  "coach.settings.autoBrief": "Auto-brief after every engine move",
+  "coach.settings.autoBrief": "Auto-brief after every move",
   "coach.settings.autoBriefHint":
-    "When on, each engine move triggers a 1-2 sentence comment request and spends your API quota; only while this panel is open.",
+    "When on, every move by you or the engine triggers a 1-2 sentence comment request and spends your API quota; briefs keep running in the background while the panel is closed and accumulate in the conversation.",
   "coach.settings.save": "Save settings",
   "coach.settings.test": "Test connection",
   "coach.settings.testing": "Testing…",

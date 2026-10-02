@@ -1,7 +1,8 @@
 // jsdom 测试专用挂载入口：由 tests/coach.test.mjs 经 esbuild 打包后注入 jsdom
+import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { I18nProvider } from "../app/lib/i18n";
-import { AiCoach } from "../app/components/ai-coach";
+import { AiCoach, AiCoachEntry } from "../app/components/ai-coach";
 import type { CoachSnapshot } from "../app/lib/coach-prompt";
 
 declare global {
@@ -37,12 +38,25 @@ if (container) {
   let snapshot = makeSnapshot();
   const root = createRoot(container);
   const render = () => {
-    root.render(
-      <I18nProvider>
-        <AiCoach snapshot={snapshot} />
-      </I18nProvider>,
-    );
+    root.render(<Harness current={snapshot} />);
   };
+
+  // 与 page.tsx 相同的挂载结构：顶栏入口 + 工作区面板（jsdom 宽度 < 1240px，抽屉形态）
+  function Harness({ current }: { current: CoachSnapshot }) {
+    const [open, setOpen] = useState(false);
+    return (
+      <I18nProvider>
+        <AiCoachEntry open={open} docked={false} onToggle={() => setOpen((v) => !v)} />
+        <AiCoach
+          snapshot={current}
+          open={open}
+          docked={false}
+          onClose={() => setOpen(false)}
+        />
+      </I18nProvider>
+    );
+  }
+
   render();
   window.__advanceCoachSnapshot = (override) => {
     // 引擎走 Bb5：两半步推进，最后一手归引擎
