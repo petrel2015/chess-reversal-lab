@@ -22,6 +22,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ### 变更
 
+- 移动端推演态棋盘高度可调：棋盘下方新增「棋盘大小」滑杆，在最小 230px 与最大 340px 之间拖动（想聚焦 AI 教练就调小、专注下棋就调大），选择保存在本浏览器；未自定义时默认为视口高的约 1/3。
 - 教练默认服务改为智谱 GLM：Base URL 预填 `https://open.bigmodel.cn/api/coding/paas/v4`（智谱 Coding Plan），默认模型 `glm-5.3-flashx`；已有配置不受影响，仅需填入 API Key 即可开始使用。
 - 自动简评规则：由"仅抽屉打开时、只评引擎的棋"改为"人机双方每走一步都评，面板收起时也在后台运行（点评累积在对话里）"，开关文案与提示同步更新。
 

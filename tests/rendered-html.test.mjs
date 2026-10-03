@@ -222,6 +222,7 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(css, /\.config-summary-bar\s*\{\s*display:\s*none/);
   assert.match(css, /\.coach-panel\[data-mode="pane"\]\.open/);
   assert.match(css, /height:\s*clamp\(230px,\s*33dvh,\s*340px\)/);
+  assert.match(page, /className="board-resize"/);
   assert.match(css, /@media \(max-width: 680px\) and \(min-height: 500px\)/);
   assert.match(chessBoardSrc, /application\/board-square/);
   assert.match(pieceTraySrc, /application\/board-square/);

@@ -2516,6 +2516,11 @@ footer {
   display: none;
 }
 
+/* 棋盘高度滑杆：仅移动端推演态显示 */
+.board-resize {
+  display: none;
+}
+
 @media (max-width: 680px) {
   /* 手机上首屏让位给棋盘：营销 hero 不展示（所有阶段） */
   .hero {
@@ -2813,15 +2818,37 @@ footer {
   .app-shell[data-phase="over"] .board-area {
     order: 1;
   }
+  .app-shell[data-phase="playing"] .board-resize,
+  .app-shell[data-phase="over"] .board-resize {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    order: 2;
+    flex: 0 0 auto;
+    margin: 2px 14px 0;
+  }
+  .board-resize > span {
+    flex: none;
+    color: var(--muted);
+    font-size: 9.5px;
+    white-space: nowrap;
+  }
+  .board-resize .range {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 22px;
+    min-height: 22px;
+    accent-color: var(--acid);
+  }
   .app-shell[data-phase="playing"] .position-dashboard,
   .app-shell[data-phase="over"] .position-dashboard {
-    order: 2;
+    order: 3;
     flex: 0 0 auto;
     margin-top: 6px;
   }
   .app-shell[data-phase="playing"] .board-actions,
   .app-shell[data-phase="over"] .board-actions {
-    order: 3;
+    order: 4;
     flex: 0 0 auto;
   }
   .app-shell[data-phase="playing"] .control-panel,

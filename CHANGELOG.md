@@ -22,6 +22,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/); versions are
 
 ### Changed
 
+- Adjustable mobile board height: a "Board size" slider under the board drags between the 230px minimum and the 340px maximum (shrink it to focus on the AI coach, grow it to focus on playing); the choice persists in this browser and defaults to roughly one third of the viewport height.
 - Default coach provider is now Zhipu GLM: Base URL prefilled as `https://open.bigmodel.cn/api/coding/paas/v4` (Zhipu Coding Plan) with default model `glm-5.3-flashx`; existing configurations are untouched — just paste an API key to start.
 - Auto-brief rules: instead of "only while the drawer is open, engine moves only", every move by either side now gets a brief, running in the background even when the panel is closed (briefs accumulate in the conversation); the toggle label and hint were updated accordingly.
 

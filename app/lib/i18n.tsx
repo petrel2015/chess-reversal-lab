@@ -263,6 +263,9 @@ const zh: Record<string, string> = {
   "summary.customLayout": "自定义布局",
   "summary.reconfig": "重新配置",
   "summary.reconfigAria": "展开配置菜单",
+  // 移动端：棋盘高度滑杆
+  "resize.label": "棋盘大小",
+  "resize.aria": "拖动调整棋盘高度",
   // 移动端：AI 教练聊天面板
   "coach.collapse": "收起",
   "coach.collapseAria": "收起 AI 教练面板",
@@ -542,6 +545,9 @@ const en: Record<string, string> = {
   "summary.customLayout": "Custom setup",
   "summary.reconfig": "Reconfigure",
   "summary.reconfigAria": "Open configuration menu",
+  // Mobile: board height slider
+  "resize.label": "Board size",
+  "resize.aria": "Drag to adjust board height",
   // Mobile: docked AI coach chat pane
   "coach.collapse": "Collapse",
   "coach.collapseAria": "Collapse AI coach panel",

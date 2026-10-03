@@ -40,6 +40,14 @@ import type { CoachSnapshot } from "./lib/coach-prompt";
 type Phase = "setup" | "playing" | "over";
 type StartingPosition = { board: BoardMap; turn: Color; isStandard: boolean };
 
+// 移动端推演态棋盘高度的调整范围（与 globals.css 的 clamp 保持一致）
+const BOARD_HEIGHT_MIN = 230;
+const BOARD_HEIGHT_MAX = 340;
+const BOARD_HEIGHT_KEY = "board.height";
+
+const clampBoardHeight = (value: number) =>
+  Math.min(BOARD_HEIGHT_MAX, Math.max(BOARD_HEIGHT_MIN, Math.round(value)));
+
 export default function Home() {
   const { t, locale } = useI18n();
   const [board, setBoard] = useState<BoardMap>(() => chessToBoard(new Chess()));
@@ -68,6 +76,8 @@ export default function Home() {
   const outcomeHandlerRef = useRef<(outcome: EngineOutcome) => void>(() => {});
   // 移动端推演态：着法横向条自动滚到最新一步
   const moveStripRef = useRef<HTMLOListElement | null>(null);
+  // 棋盘高度（px）：挂载后从本地存储恢复，未自定义时取视口高的 1/3
+  const [boardHeight, setBoardHeight] = useState<number | null>(null);
 
   const humanColor = winnerColor === "w" ? "b" : "w";
   const isThinkingTurn =
@@ -345,6 +355,29 @@ export default function Home() {
     if (!coachMobile) return;
     setCoachOpen(phase === "playing" || phase === "over");
   }, [phase, coachMobile]);
+
+  // 棋盘高度：优先恢复用户上次拖动的值，否则默认视口高的 1/3（钳制在范围内）
+  useEffect(() => {
+    let saved: number | null = null;
+    try {
+      const raw = window.localStorage.getItem(BOARD_HEIGHT_KEY);
+      const parsed = raw ? Number(raw) : NaN;
+      if (Number.isFinite(parsed)) saved = clampBoardHeight(parsed);
+    } catch {
+      // localStorage 不可用（私密模式等），走默认值
+    }
+    setBoardHeight(clampBoardHeight(saved ?? window.innerHeight / 3));
+  }, []);
+
+  const changeBoardHeight = useCallback((value: number) => {
+    const next = clampBoardHeight(value);
+    setBoardHeight(next);
+    try {
+      window.localStorage.setItem(BOARD_HEIGHT_KEY, String(next));
+    } catch {
+      // 写入失败只影响下次恢复，本次拖动仍然生效
+    }
+  }, []);
 
   const placePiece = (square: Square, piece: Piece) => {
     if (piece.type === "p" && (square[1] === "1" || square[1] === "8")) {
@@ -890,7 +923,14 @@ export default function Home() {
             />
           )}
 
-          <div className="board-area">
+          <div
+            className="board-area"
+            style={
+              phase !== "setup" && boardHeight !== null
+                ? { height: boardHeight }
+                : undefined
+            }
+          >
             <ChessBoard
               shownRanks={shownRanks}
               shownFiles={shownFiles}
@@ -908,6 +948,23 @@ export default function Home() {
               onPlacePiece={placePiece}
             />
           </div>
+
+          {phase !== "setup" && (
+            <div className="board-resize">
+              <span>{t("resize.label")}</span>
+              <input
+                className="range"
+                type="range"
+                min={BOARD_HEIGHT_MIN}
+                max={BOARD_HEIGHT_MAX}
+                step={5}
+                value={boardHeight ?? 285}
+                aria-label={t("resize.aria")}
+                title={t("resize.label")}
+                onChange={(event) => changeBoardHeight(Number(event.target.value))}
+              />
+            </div>
+          )}
 
           {phase === "setup" && (
             <PieceTray
