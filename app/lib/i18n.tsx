@@ -263,11 +263,8 @@ const zh: Record<string, string> = {
   "summary.customLayout": "自定义布局",
   "summary.reconfig": "重新配置",
   "summary.reconfigAria": "展开配置菜单",
-  // 移动端：AI 教练贴底条（收起态只留最新一问一答）
-  "coach.stripHint": "边下边问 · 历史已收起",
-  "coach.expand": "展开",
+  // 移动端：AI 教练聊天面板
   "coach.collapse": "收起",
-  "coach.expandAria": "展开 AI 教练历史记录",
   "coach.collapseAria": "收起 AI 教练面板",
   // piece tray
   "tray.wrongColor": "请将{color}棋放回对应颜色的棋子库",
@@ -545,11 +542,8 @@ const en: Record<string, string> = {
   "summary.customLayout": "Custom setup",
   "summary.reconfig": "Reconfigure",
   "summary.reconfigAria": "Open configuration menu",
-  // Mobile: docked AI coach strip (latest Q&A only, history collapsed)
-  "coach.stripHint": "Ask while playing · history collapsed",
-  "coach.expand": "Expand",
+  // Mobile: docked AI coach chat pane
   "coach.collapse": "Collapse",
-  "coach.expandAria": "Expand AI coach history",
   "coach.collapseAria": "Collapse AI coach panel",
   // piece tray
   "tray.wrongColor": "Return {color} pieces to their own tray",

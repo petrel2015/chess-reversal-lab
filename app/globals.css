@@ -2460,7 +2460,7 @@ footer {
   .control-panel.setup .edit-hint-card {
     display: none;
   }
-  .coach-panel.open:not([data-mode="strip"]) {
+  .coach-panel.open:not([data-mode="pane"]) {
     width: 100vw;
     border-left: 0;
   }
@@ -2616,6 +2616,7 @@ footer {
   .app-shell[data-phase="over"] .board-column {
     display: flex;
     flex-direction: column;
+    flex: 0 0 auto;
     min-height: 0;
     overflow: hidden;
     padding-bottom: 0;
@@ -2627,7 +2628,9 @@ footer {
   }
   .app-shell[data-phase="playing"] .board-area,
   .app-shell[data-phase="over"] .board-area {
-    flex: 1 1 0;
+    /* 棋盘高度固定：约 1/3 视口高，最小 230px、最大 340px，不随教练内容伸缩 */
+    flex: 0 0 auto;
+    height: clamp(230px, 33dvh, 340px);
     min-height: 0;
     display: grid;
     place-items: center;
@@ -2669,16 +2672,16 @@ footer {
     margin-top: 8px;
   }
 
-  /* ---- 子力仪表盘：推演态压缩为一条胜率带 ---- */
+  /* ---- 子力仪表盘：聊天面板打开时压缩为一条胜率带，关闭时显示完整子力 ---- */
   .app-shell[data-phase="playing"] .position-dashboard,
   .app-shell[data-phase="over"] .position-dashboard {
     margin-top: 6px;
     padding: 7px 10px;
   }
-  .app-shell[data-phase="playing"] .dashboard-heading,
-  .app-shell[data-phase="playing"] .material-list,
-  .app-shell[data-phase="over"] .dashboard-heading,
-  .app-shell[data-phase="over"] .material-list {
+  .app-shell[data-phase="playing"] .workspace.coach-open .dashboard-heading,
+  .app-shell[data-phase="playing"] .workspace.coach-open .material-list,
+  .app-shell[data-phase="over"] .workspace.coach-open .dashboard-heading,
+  .app-shell[data-phase="over"] .workspace.coach-open .material-list {
     display: none;
   }
 
@@ -2732,12 +2735,13 @@ footer {
     font-size: 10px;
   }
 
-  /* ---- AI 教练贴底条 ---- */
-  .coach-panel[data-mode="strip"] {
+  /* ---- AI 教练聊天面板：占满棋盘下方剩余高度，消息区内部滚动 ---- */
+  .coach-panel[data-mode="pane"].open {
     display: flex;
     position: static;
     order: 3;
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    min-height: 0;
     width: auto;
     max-width: none;
     max-height: none;
@@ -2748,119 +2752,22 @@ footer {
     animation: none;
     overflow: hidden;
   }
-  /* 展开态：吃掉剩余高度的约六成，棋盘缩为预览 */
-  .coach-panel[data-mode="strip"].open {
-    flex: 0 0 auto;
-    height: min(58dvh, 560px);
+  .coach-panel[data-mode="pane"] .coach-header {
+    padding: 9px 10px 8px 14px;
   }
-  .strip-head {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--line);
-    min-width: 0;
+  .coach-panel[data-mode="pane"] .coach-heading small {
+    display: none;
   }
-  .strip-avatar {
-    flex: none;
-    width: 20px;
-    height: 20px;
-    display: grid;
-    place-items: center;
-    background: var(--acid);
-    color: #11170a;
-    border-radius: 7px;
-    font-size: 12px;
+  .coach-panel[data-mode="pane"] .coach-messages {
+    padding: 10px 12px;
   }
-  .strip-head strong {
-    flex: none;
-    font-size: 12px;
-    color: var(--ink);
+  .coach-panel[data-mode="pane"] .coach-input-row {
+    padding: 6px 10px 10px;
   }
-  .strip-head small {
-    flex: 1 1 0;
-    min-width: 0;
-    color: var(--muted);
-    font-size: 9.5px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .strip-toggle {
-    flex: none;
-    width: 30px;
-    height: 24px;
-    border: 1px solid var(--line);
-    border-radius: 7px;
-    background: transparent;
-    color: #a9aca4;
-    font-size: 10px;
-    cursor: pointer;
-  }
-  .strip-toggle:hover {
-    color: var(--ink);
-    border-color: var(--acid);
-  }
-  .strip-toggle:focus-visible {
-    outline: 2px solid var(--acid);
-    outline-offset: 2px;
-  }
-  .strip-qa {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 8px 10px;
-    min-height: 0;
-    overflow: hidden;
-  }
-  .strip-qa .coach-msg {
-    font-size: 11px;
-    line-height: 1.55;
-    padding: 6px 9px;
-  }
-  .strip-qa .strip-q {
-    align-self: flex-end;
-    max-width: 82%;
-  }
-  .strip-qa .strip-a {
-    align-self: stretch;
-    max-width: 100%;
-  }
-  .strip-clamp {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .strip-hintline {
-    margin: 0;
-    color: var(--muted);
-    font-size: 11px;
-    line-height: 1.5;
-  }
-  .strip-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  .strip-empty p {
-    margin: 0;
-    color: var(--ink);
-    font-size: 11.5px;
-  }
-  .strip-empty .coach-cta {
-    padding: 7px 14px;
-  }
-  .coach-panel[data-mode="strip"] .coach-input-row {
-    padding: 6px 8px 8px;
-  }
-  .coach-panel[data-mode="strip"] .coach-input-row textarea {
+  .coach-panel[data-mode="pane"] .coach-input-row textarea {
     min-height: 36px;
-    padding: 8px 11px;
-    font-size: 12px;
   }
-  .coach-panel[data-mode="strip"] .coach-input-row button {
+  .coach-panel[data-mode="pane"] .coach-input-row button {
     padding: 8px 13px;
   }
 }
@@ -2895,7 +2802,7 @@ footer {
   .app-shell[data-phase="playing"] .board-column,
   .app-shell[data-phase="over"] .board-column {
     order: 1;
-    flex: 1 1 0;
+    flex: 0 0 auto;
   }
   .app-shell[data-phase="playing"] .turn-banner,
   .app-shell[data-phase="over"] .turn-banner {
@@ -2922,13 +2829,9 @@ footer {
     order: 2;
     flex: 0 0 auto;
   }
-  /* 教练展开时只留棋盘预览：仪表盘、操作行、着法条全部隐藏 */
-  .app-shell[data-phase="playing"] .workspace.coach-expanded .position-dashboard,
-  .app-shell[data-phase="playing"] .workspace.coach-expanded .board-actions,
-  .app-shell[data-phase="playing"] .workspace.coach-expanded .control-panel,
-  .app-shell[data-phase="over"] .workspace.coach-expanded .position-dashboard,
-  .app-shell[data-phase="over"] .workspace.coach-expanded .board-actions,
-  .app-shell[data-phase="over"] .workspace.coach-expanded .control-panel {
-    display: none;
+  /* 聊天面板关闭时：着法条区域吸收底部剩余空间（仪表盘恢复完整子力展示） */
+  .app-shell[data-phase="playing"] .workspace:not(.coach-open) .control-panel,
+  .app-shell[data-phase="over"] .workspace:not(.coach-open) .control-panel {
+    flex: 1 1 0;
   }
 }

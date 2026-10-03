@@ -93,14 +93,11 @@ export function AiCoach({
   snapshot,
   open,
   docked,
-  onToggleOpen,
   onClose,
 }: {
   snapshot: CoachSnapshot;
   open: boolean;
   docked: boolean;
-  // 移动端贴底条头部/收起态的展开按钮用；抽屉与停靠形态不传也可用
-  onToggleOpen?: () => void;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -157,47 +154,17 @@ export function AiCoach({
 
   const configured = isCoachConfigured(settings);
 
-  // 移动端推演态：教练不再全屏遮挡，而是常驻贴底条（收起只留最新一问一答，
-  // 展开才显示历史）。布局阶段仍走抽屉形态。
+  // 移动端推演态：教练不再全屏遮挡，而是常驻为棋盘下方的聊天面板——
+  // 面板占满剩余高度、消息区内部滚动，棋盘高度固定不随对话行数变化。
+  // 布局阶段仍走抽屉形态。
   const mobileNarrow = useMediaQuery("(max-width: 680px)");
-  const stripMode = mobileNarrow && !docked && snapshot.phase !== "setup";
+  const paneMode = mobileNarrow && !docked && snapshot.phase !== "setup";
 
-  // 贴底条内容：最近一条回复 + 触发它的提问（自动简评没有提问则只显示回复）
-  let stripAnswer: CoachThreadMessage | null = null;
-  let stripQuestion: CoachThreadMessage | null = null;
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (messages[index].role === "assistant") {
-      stripAnswer = messages[index];
-      const previous = messages[index - 1];
-      stripQuestion = previous && previous.role === "user" ? previous : null;
-      break;
-    }
-  }
-  if (!stripAnswer) {
-    // 还没有任何回复：若是手动提问则显示等待中的问题
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      if (messages[index].role === "user") {
-        stripQuestion = messages[index];
-        break;
-      }
-    }
-  }
-  if (stream) {
-    // 正在流式输出时优先展示流；提问取最后一条用户消息（自动简评为 null）
-    stripQuestion = null;
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      if (messages[index].role === "user") {
-        stripQuestion = messages[index];
-        break;
-      }
-    }
-  }
-
-  // 面板打开：焦点移入对话输入框（移动端贴底条展开态不自动聚焦，避免键盘顶起半屏）
+  // 面板打开：焦点移入对话输入框（移动端聊天面板打开时不自动聚焦，避免键盘顶起半屏）
   useEffect(() => {
-    if (!open || view !== "chat" || stripMode) return;
+    if (!open || view !== "chat" || paneMode) return;
     if (configured) inputRef.current?.focus();
-  }, [open, view, configured, stripMode]);
+  }, [open, view, configured, paneMode]);
 
   // 抽屉形态：Escape 关闭；停靠形态不响应（面板不遮挡棋盘）
   useEffect(() => {
@@ -459,107 +426,21 @@ export function AiCoach({
 
   return (
     <>
-      {!docked && open && !stripMode && (
+      {!docked && open && !paneMode && (
         <div className="coach-backdrop" onClick={onClose} aria-hidden="true" />
       )}
       <aside
         ref={panelRef}
         className={`coach-panel${open ? " open" : ""}`}
         data-docked={docked || undefined}
-        data-mode={stripMode ? "strip" : undefined}
-        role={docked || stripMode ? "complementary" : "dialog"}
-        aria-modal={docked || stripMode ? undefined : true}
+        data-mode={paneMode ? "pane" : undefined}
+        role={docked || paneMode ? "complementary" : "dialog"}
+        aria-modal={docked || paneMode ? undefined : true}
         aria-label={t("coach.title")}
       >
-        {/* 内容仅在打开（或移动端贴底条常驻）时挂载：面板常驻导致的 localStorage 读取
+        {/* 内容仅在打开（或移动端聊天面板常驻）时挂载：面板常驻导致的 localStorage 读取
             （loadCoachSettings 惰性初始化）会破坏 SSR 水合一致性 */}
-        {(open || stripMode) && (
-          stripMode && !open ? (
-            <>
-              {/* 贴底条收起态：最新一问一答 + 输入框，历史收起 */}
-              <header className="strip-head">
-                <span className="strip-avatar" aria-hidden="true">♟</span>
-                <strong>{t("coach.title")}</strong>
-                <small>{t("coach.stripHint")}</small>
-                <button
-                  type="button"
-                  className="strip-toggle"
-                  aria-label={t("coach.expandAria")}
-                  onClick={() => onToggleOpen?.()}
-                >
-                  ⌃
-                </button>
-              </header>
-              <div className="strip-qa" aria-live="polite">
-                {!configured ? (
-                  <div className="strip-empty">
-                    <p>{t("coach.unconfiguredTitle")}</p>
-                    <button
-                      type="button"
-                      className="coach-cta"
-                      onClick={() => {
-                        setDraft(settings);
-                        setTestResult(null);
-                        setView("settings");
-                        onToggleOpen?.();
-                      }}
-                    >
-                      {t("coach.unconfiguredCta")}
-                    </button>
-                  </div>
-                ) : stream ? (
-                  <div className="coach-msg assistant pending strip-a">
-                    <ThinkSection
-                      live
-                      reasoning={stream.reasoning}
-                      contentStarted={Boolean(stream.content)}
-                      seconds={streamElapsed(stream, nowTick)}
-                    />
-                    {stream.content && (
-                      <div className="strip-clamp">
-                        <CoachMarkdown text={stream.content} />
-                      </div>
-                    )}
-                  </div>
-                ) : stripAnswer ? (
-                  <div
-                    className={`coach-msg assistant strip-a${stripAnswer.kind === "brief" ? " brief" : ""}`}
-                  >
-                    {stripAnswer.kind === "brief" && (
-                      <span className="coach-brief-tag">{t("coach.briefTag")}</span>
-                    )}
-                    <ThinkSection
-                      reasoning={stripAnswer.reasoning}
-                      seconds={
-                        stripAnswer.thinkMs !== undefined
-                          ? Math.round(stripAnswer.thinkMs / 1000)
-                          : 0
-                      }
-                    />
-                    <div className="strip-clamp">
-                      <CoachMarkdown text={stripAnswer.content} />
-                    </div>
-                  </div>
-                ) : stripQuestion ? (
-                  <>
-                    <div className="coach-msg user strip-q">
-                      <p>{stripQuestion.content}</p>
-                    </div>
-                    <div className="coach-msg assistant pending strip-a">
-                      <ThinkSection live reasoning="" seconds={0} />
-                    </div>
-                  </>
-                ) : (
-                  <p className="strip-hintline">
-                    {snapshot.phase === "setup"
-                      ? t("coach.noMoves")
-                      : t("coach.subtitle")}
-                  </p>
-                )}
-              </div>
-              {inputRow}
-            </>
-          ) : (
+        {(open || paneMode) && (
           <>
         <header className="coach-header">
           <div className="coach-heading">
@@ -593,9 +474,9 @@ export function AiCoach({
             type="button"
             className="coach-close"
             onClick={onClose}
-            aria-label={stripMode ? t("coach.collapseAria") : t("coach.close")}
+            aria-label={paneMode ? t("coach.collapseAria") : t("coach.close")}
           >
-            {stripMode ? "⌄" : "×"}
+            {paneMode ? "⌄" : "×"}
           </button>
         </header>
 
@@ -824,7 +705,6 @@ export function AiCoach({
           </>
         )}
           </>
-          )
         )}
       </aside>
     </>

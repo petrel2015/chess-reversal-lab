@@ -214,13 +214,14 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(css, /\.control-panel\.playing,[\s\S]*?\.control-panel\.over\s*\{[^}]*order:\s*3/);
   assert.match(css, /\.control-dashboard\s*\{\s*display:\s*none/);
   assert.match(css, /\.board-dashboard\s*\{[\s\S]*?display:\s*block/);
-  // 移动端推演态：配置折叠为摘要条、教练常驻贴底条、视口锁定
+  // 移动端推演态：配置折叠为摘要条、教练聊天面板与棋盘共存（棋盘高度固定）、视口锁定
   assert.match(page, /data-phase=\{phase\}/);
   assert.match(page, /className="config-summary-bar"/);
   assert.match(page, /t\("summary.reconfig"\)/);
-  assert.match(page, /onToggleOpen=/);
+  assert.match(page, /coach-open/);
   assert.match(css, /\.config-summary-bar\s*\{\s*display:\s*none/);
-  assert.match(css, /\.coach-panel\[data-mode="strip"\]/);
+  assert.match(css, /\.coach-panel\[data-mode="pane"\]\.open/);
+  assert.match(css, /height:\s*clamp\(230px,\s*33dvh,\s*340px\)/);
   assert.match(css, /@media \(max-width: 680px\) and \(min-height: 500px\)/);
   assert.match(chessBoardSrc, /application\/board-square/);
   assert.match(pieceTraySrc, /application\/board-square/);

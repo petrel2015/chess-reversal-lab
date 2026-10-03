@@ -61,6 +61,8 @@ export default function Home() {
   // 移动端推演态「重新配置」小菜单的展开状态
   const [reconfigOpen, setReconfigOpen] = useState(false);
   const coachDocked = useMediaQuery("(min-width: 1240px)");
+  // 移动端聊天面板：进入推演自动展开，回到布局阶段自动收起（恢复抽屉形态）
+  const coachMobile = useMediaQuery("(max-width: 680px)");
   const chessRef = useRef<Chess | null>(null);
   const startingPositionRef = useRef<StartingPosition | null>(null);
   const outcomeHandlerRef = useRef<(outcome: EngineOutcome) => void>(() => {});
@@ -337,6 +339,12 @@ export default function Home() {
     const el = moveStripRef.current;
     if (el) el.scrollLeft = el.scrollWidth;
   }, [moves]);
+
+  // 移动端：推演开始自动展开聊天面板（与棋盘共存），回到布局自动收起
+  useEffect(() => {
+    if (!coachMobile) return;
+    setCoachOpen(phase === "playing" || phase === "over");
+  }, [phase, coachMobile]);
 
   const placePiece = (square: Square, piece: Piece) => {
     if (piece.type === "p" && (square[1] === "1" || square[1] === "8")) {
@@ -754,7 +762,7 @@ export default function Home() {
       </section>
 
       <section
-        className={`workspace${coachOpen && coachDocked ? " with-coach" : ""}${coachOpen && !coachDocked ? " coach-expanded" : ""}`}
+        className={`workspace${coachOpen && coachDocked ? " with-coach" : ""}${coachOpen && !coachDocked ? " coach-open" : ""}`}
       >
         {/* 移动端推演态：开局配置折叠成摘要条，点「重新配置」才能修改 */}
         {phase !== "setup" && (
@@ -1115,7 +1123,6 @@ export default function Home() {
           snapshot={coachSnapshot}
           open={coachOpen}
           docked={coachDocked}
-          onToggleOpen={() => setCoachOpen((value) => !value)}
           onClose={() => setCoachOpen(false)}
         />
       </section>
