@@ -2261,13 +2261,13 @@ footer {
     flex-direction: column;
   }
   .board-column {
-    order: 2;
+    order: 1;
     padding: 14px var(--mobile-gutter);
     min-width: 0;
     overflow-x: hidden;
   }
   .control-panel.setup {
-    order: 1;
+    order: 2;
     border-bottom: 1px solid var(--line);
   }
   .control-panel.playing,
@@ -2460,7 +2460,7 @@ footer {
   .control-panel.setup .edit-hint-card {
     display: none;
   }
-  .coach-panel.open {
+  .coach-panel.open:not([data-mode="strip"]) {
     width: 100vw;
     border-left: 0;
   }
@@ -2502,5 +2502,433 @@ footer {
     scroll-behavior: auto !important;
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+/* ===================== 移动端推演态改版（方案A） =====================
+   推演开始后：开局配置折叠为摘要条，点「重新配置」弹出菜单才能修改；
+   AI 教练常驻为贴底条，收起只留最新一问一答，展开才是完整对话；
+   推演中/结束时整页视口锁定，棋盘按剩余空间自适应取方。
+   摘要条与教练条只在 ≤680px 生效；≥500px 高度才锁定视口（横屏矮窗口
+   回退为抽屉形态，data-mode 已由组件按宽度给出，这里只管几何）。 */
+
+.config-summary-bar {
+  display: none;
+}
+
+@media (max-width: 680px) {
+  /* 手机上首屏让位给棋盘：营销 hero 不展示（所有阶段） */
+  .hero {
+    display: none;
+  }
+
+  /* ---- 配置摘要条（推演中 / 结束） ---- */
+  .app-shell[data-phase="playing"] .config-summary-bar,
+  .app-shell[data-phase="over"] .config-summary-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 8px 10px 0;
+    padding: 5px 5px 5px 9px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: var(--panel);
+    min-width: 0;
+    position: relative;
+  }
+  .summary-chips {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .summary-chip {
+    flex: 0 0 auto;
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 9.5px;
+    color: #b9bbb2;
+    white-space: nowrap;
+  }
+  .summary-chip.acid {
+    border-color: rgba(201, 240, 82, 0.4);
+    color: var(--acid);
+  }
+  .summary-reconfig {
+    flex: 0 0 auto;
+    border: 1px solid rgba(201, 240, 82, 0.5);
+    color: var(--acid);
+    background: transparent;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font: 600 10px var(--font-noto), sans-serif;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .summary-reconfig:focus-visible {
+    outline: 2px solid var(--acid);
+    outline-offset: 2px;
+  }
+  .summary-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: transparent;
+  }
+  .summary-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 6px;
+    z-index: 41;
+    display: flex;
+    flex-direction: column;
+    min-width: 158px;
+    padding: 4px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+  }
+  .summary-menu button {
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: 500 11.5px/1.4 var(--font-noto), sans-serif;
+    text-align: left;
+    padding: 10px;
+    border-radius: 7px;
+    cursor: pointer;
+  }
+  .summary-menu button:hover {
+    background: var(--panel-2);
+  }
+  .summary-menu button:focus-visible {
+    outline: 2px solid var(--acid);
+    outline-offset: -2px;
+  }
+
+  /* ---- 推演态纵向排布：摘要条 → 棋盘 → 着法条 → 教练 ---- */
+  .app-shell[data-phase="playing"] .board-column,
+  .app-shell[data-phase="over"] .board-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+  .app-shell[data-phase="playing"] .control-panel,
+  .app-shell[data-phase="over"] .control-panel {
+    border-top: 1px solid var(--line);
+    padding: 2px 12px 6px;
+  }
+  .app-shell[data-phase="playing"] .board-area,
+  .app-shell[data-phase="over"] .board-area {
+    flex: 1 1 0;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    container-type: size;
+  }
+  /* 棋盘取「宽与高中较小者」的方形（容器查询单位；旧浏览器回退为宽度优先） */
+  .app-shell[data-phase="playing"] .board-area .board-wrap,
+  .app-shell[data-phase="over"] .board-area .board-wrap {
+    width: min(100%, 610px);
+    width: min(100cqw, calc(100cqh - 4px), 610px);
+    margin: 0;
+  }
+
+  /* ---- 操作行：四个等宽按钮（重新布局入口移入摘要条菜单） ---- */
+  .app-shell[data-phase="playing"] .play-actions,
+  .app-shell[data-phase="over"] .play-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+  }
+  /* 分组与行都透明化，四个按钮直接成为上面的网格项 */
+  .app-shell[data-phase="playing"] .history-action-group,
+  .app-shell[data-phase="over"] .history-action-group,
+  .app-shell[data-phase="playing"] .history-action-row,
+  .app-shell[data-phase="over"] .history-action-row {
+    display: contents;
+  }
+  .app-shell[data-phase="playing"] .history-action-group > small,
+  .app-shell[data-phase="over"] .history-action-group > small {
+    display: none;
+  }
+  .app-shell[data-phase="playing"] .position-reset-actions.compact,
+  .app-shell[data-phase="over"] .position-reset-actions.compact {
+    display: none;
+  }
+  .app-shell[data-phase="playing"] .board-actions,
+  .app-shell[data-phase="over"] .board-actions {
+    min-height: 0;
+    margin-top: 8px;
+  }
+
+  /* ---- 子力仪表盘：推演态压缩为一条胜率带 ---- */
+  .app-shell[data-phase="playing"] .position-dashboard,
+  .app-shell[data-phase="over"] .position-dashboard {
+    margin-top: 6px;
+    padding: 7px 10px;
+  }
+  .app-shell[data-phase="playing"] .dashboard-heading,
+  .app-shell[data-phase="playing"] .material-list,
+  .app-shell[data-phase="over"] .dashboard-heading,
+  .app-shell[data-phase="over"] .material-list {
+    display: none;
+  }
+
+  /* ---- 着法条：横向滑动，只保留最新记录入口 ---- */
+  .app-shell[data-phase="playing"] .control-heading,
+  .app-shell[data-phase="playing"] .evaluation-card,
+  .app-shell[data-phase="playing"] .side-summary,
+  .app-shell[data-phase="playing"] .panel-actions,
+  .app-shell[data-phase="over"] .control-heading,
+  .app-shell[data-phase="over"] .evaluation-card,
+  .app-shell[data-phase="over"] .side-summary,
+  .app-shell[data-phase="over"] .panel-actions {
+    display: none;
+  }
+  .app-shell[data-phase="playing"] .move-list,
+  .app-shell[data-phase="over"] .move-list {
+    margin: 0;
+  }
+  .app-shell[data-phase="playing"] .move-list-heading,
+  .app-shell[data-phase="over"] .move-list-heading {
+    display: none;
+  }
+  .app-shell[data-phase="playing"] .move-list p,
+  .app-shell[data-phase="over"] .move-list p {
+    display: none;
+  }
+  .app-shell[data-phase="playing"] .move-list ol,
+  .app-shell[data-phase="over"] .move-list ol {
+    display: flex;
+    flex-direction: row;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 4px 2px;
+    scrollbar-width: none;
+  }
+  .app-shell[data-phase="playing"] .move-list ol::-webkit-scrollbar,
+  .app-shell[data-phase="over"] .move-list ol::-webkit-scrollbar {
+    display: none;
+  }
+  .app-shell[data-phase="playing"] .move-list li,
+  .app-shell[data-phase="over"] .move-list li {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    padding: 4px 7px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--panel-2);
+    font-size: 10px;
+  }
+
+  /* ---- AI 教练贴底条 ---- */
+  .coach-panel[data-mode="strip"] {
+    display: flex;
+    position: static;
+    order: 3;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
+    max-height: none;
+    margin: 6px 8px 8px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    animation: none;
+    overflow: hidden;
+  }
+  /* 展开态：吃掉剩余高度的约六成，棋盘缩为预览 */
+  .coach-panel[data-mode="strip"].open {
+    flex: 0 0 auto;
+    height: min(58dvh, 560px);
+  }
+  .strip-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line);
+    min-width: 0;
+  }
+  .strip-avatar {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    background: var(--acid);
+    color: #11170a;
+    border-radius: 7px;
+    font-size: 12px;
+  }
+  .strip-head strong {
+    flex: none;
+    font-size: 12px;
+    color: var(--ink);
+  }
+  .strip-head small {
+    flex: 1 1 0;
+    min-width: 0;
+    color: var(--muted);
+    font-size: 9.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .strip-toggle {
+    flex: none;
+    width: 30px;
+    height: 24px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: transparent;
+    color: #a9aca4;
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .strip-toggle:hover {
+    color: var(--ink);
+    border-color: var(--acid);
+  }
+  .strip-toggle:focus-visible {
+    outline: 2px solid var(--acid);
+    outline-offset: 2px;
+  }
+  .strip-qa {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .strip-qa .coach-msg {
+    font-size: 11px;
+    line-height: 1.55;
+    padding: 6px 9px;
+  }
+  .strip-qa .strip-q {
+    align-self: flex-end;
+    max-width: 82%;
+  }
+  .strip-qa .strip-a {
+    align-self: stretch;
+    max-width: 100%;
+  }
+  .strip-clamp {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .strip-hintline {
+    margin: 0;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .strip-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .strip-empty p {
+    margin: 0;
+    color: var(--ink);
+    font-size: 11.5px;
+  }
+  .strip-empty .coach-cta {
+    padding: 7px 14px;
+  }
+  .coach-panel[data-mode="strip"] .coach-input-row {
+    padding: 6px 8px 8px;
+  }
+  .coach-panel[data-mode="strip"] .coach-input-row textarea {
+    min-height: 36px;
+    padding: 8px 11px;
+    font-size: 12px;
+  }
+  .coach-panel[data-mode="strip"] .coach-input-row button {
+    padding: 8px 13px;
+  }
+}
+
+/* 高度充足时锁定视口：推演中不再整页滚动，全部内容一屏排布 */
+@media (max-width: 680px) and (min-height: 500px) {
+  .app-shell[data-phase="playing"],
+  .app-shell[data-phase="over"] {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .app-shell[data-phase="playing"] .hero,
+  .app-shell[data-phase="playing"] footer,
+  .app-shell[data-phase="over"] .hero,
+  .app-shell[data-phase="over"] footer {
+    display: none;
+  }
+  .app-shell[data-phase="playing"] .workspace,
+  .app-shell[data-phase="over"] .workspace {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .app-shell[data-phase="playing"] .config-summary-bar,
+  .app-shell[data-phase="over"] .config-summary-bar {
+    flex: 0 0 auto;
+    order: 0;
+  }
+  .app-shell[data-phase="playing"] .board-column,
+  .app-shell[data-phase="over"] .board-column {
+    order: 1;
+    flex: 1 1 0;
+  }
+  .app-shell[data-phase="playing"] .turn-banner,
+  .app-shell[data-phase="over"] .turn-banner {
+    order: 0;
+    flex: 0 0 auto;
+  }
+  .app-shell[data-phase="playing"] .board-area,
+  .app-shell[data-phase="over"] .board-area {
+    order: 1;
+  }
+  .app-shell[data-phase="playing"] .position-dashboard,
+  .app-shell[data-phase="over"] .position-dashboard {
+    order: 2;
+    flex: 0 0 auto;
+    margin-top: 6px;
+  }
+  .app-shell[data-phase="playing"] .board-actions,
+  .app-shell[data-phase="over"] .board-actions {
+    order: 3;
+    flex: 0 0 auto;
+  }
+  .app-shell[data-phase="playing"] .control-panel,
+  .app-shell[data-phase="over"] .control-panel {
+    order: 2;
+    flex: 0 0 auto;
+  }
+  /* 教练展开时只留棋盘预览：仪表盘、操作行、着法条全部隐藏 */
+  .app-shell[data-phase="playing"] .workspace.coach-expanded .position-dashboard,
+  .app-shell[data-phase="playing"] .workspace.coach-expanded .board-actions,
+  .app-shell[data-phase="playing"] .workspace.coach-expanded .control-panel,
+  .app-shell[data-phase="over"] .workspace.coach-expanded .position-dashboard,
+  .app-shell[data-phase="over"] .workspace.coach-expanded .board-actions,
+  .app-shell[data-phase="over"] .workspace.coach-expanded .control-panel {
+    display: none;
   }
 }

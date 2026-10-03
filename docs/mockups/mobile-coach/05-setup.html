@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="style.css" />
+<style>
+  /* 设置阶段专属微调 */
+  .banner { padding-bottom: 4px; }
+  .board-wrap { flex: 0 0 auto; padding-top: 0; }
+</style>
+</head>
+<body>
+  <div class="statusbar"><span>9:41</span><span class="sicons">▮▮▮ ⌖ ▭</span></div>
+
+  <header class="topbar">
+    <span class="brand"><span class="mark">♞</span><b>逆转棋局</b></span>
+    <span class="spacer"></span>
+    <span class="pill"><span class="dot"></span>引擎就绪</span>
+    <span class="pill coach-on">AI 教练</span>
+  </header>
+
+  <div class="banner">
+    <span class="turn-dot"></span>
+    <strong>布局阶段</strong>
+    <small>摆放棋子、选预设，或直接用标准开局</small>
+    <span class="flip">⇅ 翻转</span>
+  </div>
+
+  <div class="presets">
+    <span class="pbtn">空棋盘</span>
+    <span class="pbtn on">♟ 标准开局</span>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" data-pos="rnbqkbnr/pppppppp/......../......../......../......../PPPPPPPP/RNBQKBNR" data-size="262"></div>
+    <div class="board-files"></div>
+  </div>
+
+  <div class="tray">
+    <span class="tlabel">黑方摆子</span>
+    <span class="slots"><span class="slot"><span class="pb">♚</span></span><span class="slot"><span class="pb">♛</span></span><span class="slot"><span class="pb">♜</span></span><span class="slot"><span class="pb">♝</span></span><span class="slot"><span class="pb">♞</span></span><span class="slot"><span class="pb">♟</span></span></span>
+  </div>
+  <div class="tray">
+    <span class="tlabel">白方摆子</span>
+    <span class="slots"><span class="slot"><span class="pw">♚</span></span><span class="slot"><span class="pw">♛</span></span><span class="slot"><span class="pw">♜</span></span><span class="slot"><span class="pw">♝</span></span><span class="slot"><span class="pw">♞</span></span><span class="slot"><span class="pw">♟</span></span></span>
+  </div>
+
+  <div class="config-card">
+    <div>
+      <div class="flabel">谁最终获胜（引擎执该方）</div>
+      <div class="seg">
+        <span class="opt"><span class="g">♔</span>白方</span>
+        <span class="opt on"><span class="g">♚</span>黑方</span>
+      </div>
+    </div>
+    <div>
+      <div class="flabel">先手方</div>
+      <div class="seg">
+        <span class="opt on"><i class="turn-dot" style="flex:0 0 7px;width:7px;height:7px;border-radius:50%;background:#f2f1e9"></i>白先</span>
+        <span class="opt"><i class="turn-dot b" style="flex:0 0 7px;width:7px;height:7px;border-radius:50%;background:#1c1e1a;box-shadow:inset 0 0 0 1.5px #7c7f76"></i>黑先</span>
+      </div>
+    </div>
+    <div>
+      <div class="flabel">AI 每步用时 <output>1.2 秒</output></div>
+      <div class="slider-wrap"><div class="slider-track"></div><div class="slider-thumb"></div></div>
+    </div>
+    <div class="validation">
+      <span class="vcheck">✓</span>
+      <div><strong>阵型有效</strong><small>双王就位、无兵在底排，可以开始推演</small></div>
+    </div>
+    <button class="start-btn">开始推演 →</button>
+  </div>
+
+  <div class="homebar"></div>
+
+  <span class="note" style="right: 10px; top: 522px;">开始推演后 → 折叠为一条摘要</span>
+
+  <script src="board.js"></script>
+</body>
+</html>

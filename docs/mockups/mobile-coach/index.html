@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>逆转棋局 · 移动端改版效果图总览</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: #0c0e0c;
+    color: #f2f1e9;
+    font-family: "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+    padding: 18px 20px 24px;
+  }
+  h1 { font-size: 18px; letter-spacing: 0.04em; }
+  h1 em { color: #c9f052; font-style: normal; }
+  p.sub { color: #8f918a; font-size: 11px; margin-top: 5px; }
+  .row {
+    display: flex;
+    gap: 22px;
+    margin-top: 18px;
+    align-items: flex-start;
+  }
+  .col { width: 316px; flex: 0 0 316px; }
+  .frame {
+    width: 316px;
+    height: 683px;
+    border: 1px solid #30332c;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+    position: relative;
+  }
+  .frame iframe {
+    width: 390px; height: 844px;
+    border: 0;
+    transform: scale(0.8102);
+    transform-origin: 0 0;
+  }
+  .cap { margin-top: 9px; }
+  .cap b {
+    font-size: 12px;
+    color: #c9f052;
+    display: block;
+    letter-spacing: 0.03em;
+  }
+  .cap span { font-size: 10px; color: #8f918a; line-height: 1.6; display: block; margin-top: 3px; }
+  .divider {
+    flex: 0 0 1px;
+    background: #30332c;
+    align-self: stretch;
+    margin: 0 4px;
+  }
+</style>
+</head>
+<body>
+  <h1>逆转棋局 · 移动端改版 — <em>配置折叠 × 教练与棋盘共存</em></h1>
+  <p class="sub">iPhone 390×844 · 左三屏 = 方案A（教练常驻贴底） · 中间一屏 = 共同的设置阶段 · 右一屏 = 方案B（教练极简抽屉） · 虚线绿框为设计批注，非界面元素</p>
+
+  <div class="row">
+    <div class="col">
+      <div class="frame"><iframe src="01-plan-a-playing.html"></iframe></div>
+      <div class="cap">
+        <b>方案A · ① 推演中（教练收起）</b>
+        <span>开局配置折叠成摘要条+「重新配置」；教练常驻底部约 1/4 屏，只保留最新一问一答与输入框，历史收起。</span>
+      </div>
+    </div>
+    <div class="col">
+      <div class="frame"><iframe src="02-plan-a-coach-open.html"></iframe></div>
+      <div class="cap">
+        <b>方案A · ② 教练展开（半屏）</b>
+        <span>点 ⌃ 上滑展开：历史记录、快捷提问、流式思考都在这里；棋盘缩为预览仍可见，随时 ⌄ 收起。</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="col">
+      <div class="frame"><iframe src="05-setup.html"></iframe></div>
+      <div class="cap">
+        <b>设置阶段（推演前 / 重新配置态）</b>
+        <span>两个方案共用：谁赢、先手、AI 秒数、布局都在这里展开；点「开始推演」后折叠为摘要条。</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="col">
+      <div class="frame"><iframe src="03-plan-b-playing.html"></iframe></div>
+      <div class="cap">
+        <b>方案B · ① 推演中（教练贴底条）</b>
+        <span>教练极简：一行最新回答 + 一格输入框，棋盘吃到最大；问答以单行摘要展示。</span>
+      </div>
+    </div>
+    <div class="col">
+      <div class="frame"><iframe src="04-plan-b-sheet.html"></iframe></div>
+      <div class="cap">
+        <b>方案B · ② 教练展开（半屏浮层）</b>
+        <span>上拉浮层看历史与长回答，盖在棋盘上但不改变页面布局；收起即恢复。</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

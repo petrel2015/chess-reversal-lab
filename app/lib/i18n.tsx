@@ -254,6 +254,21 @@ const zh: Record<string, string> = {
   "coach.error.responseApi":
     "该端点是 OpenAI Response 协议，不是 Chat Completions：请改填兼容地址（智谱用 https://open.bigmodel.cn/api/coding/paas/v4）。",
   "coach.error.badResponse": "服务商返回了无法解析的内容。",
+  // 移动端：推演开始后折叠的配置摘要条
+  "summary.wins": "{side}胜",
+  "summary.whiteFirst": "白先",
+  "summary.blackFirst": "黑先",
+  "summary.time": "AI {seconds}s/步",
+  "summary.standardLayout": "标准布局",
+  "summary.customLayout": "自定义布局",
+  "summary.reconfig": "重新配置",
+  "summary.reconfigAria": "展开配置菜单",
+  // 移动端：AI 教练贴底条（收起态只留最新一问一答）
+  "coach.stripHint": "边下边问 · 历史已收起",
+  "coach.expand": "展开",
+  "coach.collapse": "收起",
+  "coach.expandAria": "展开 AI 教练历史记录",
+  "coach.collapseAria": "收起 AI 教练面板",
   // piece tray
   "tray.wrongColor": "请将{color}棋放回对应颜色的棋子库",
   "tray.returnAria": "将已选中的{color}{name}放回棋子库",
@@ -521,6 +536,21 @@ const en: Record<string, string> = {
   "coach.error.responseApi":
     "This endpoint speaks the OpenAI Response protocol, not Chat Completions — use a compatible base URL (for Zhipu: https://open.bigmodel.cn/api/coding/paas/v4).",
   "coach.error.badResponse": "The provider returned an unreadable response.",
+  // Mobile: collapsed config summary bar shown once the simulation starts
+  "summary.wins": "{side} wins",
+  "summary.whiteFirst": "White first",
+  "summary.blackFirst": "Black first",
+  "summary.time": "AI {seconds}s/move",
+  "summary.standardLayout": "Standard setup",
+  "summary.customLayout": "Custom setup",
+  "summary.reconfig": "Reconfigure",
+  "summary.reconfigAria": "Open configuration menu",
+  // Mobile: docked AI coach strip (latest Q&A only, history collapsed)
+  "coach.stripHint": "Ask while playing · history collapsed",
+  "coach.expand": "Expand",
+  "coach.collapse": "Collapse",
+  "coach.expandAria": "Expand AI coach history",
+  "coach.collapseAria": "Collapse AI coach panel",
   // piece tray
   "tray.wrongColor": "Return {color} pieces to their own tray",
   "tray.returnAria": "Return the selected {color} {name} to the tray",

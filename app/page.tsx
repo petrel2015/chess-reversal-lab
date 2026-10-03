@@ -58,10 +58,14 @@ export default function Home() {
   const [isStandardSetup, setIsStandardSetup] = useState(true);
   // AI 教练面板：宽屏停靠为工作区第三列，窄屏为抽屉；聊天记录常驻不随开合丢失
   const [coachOpen, setCoachOpen] = useState(false);
+  // 移动端推演态「重新配置」小菜单的展开状态
+  const [reconfigOpen, setReconfigOpen] = useState(false);
   const coachDocked = useMediaQuery("(min-width: 1240px)");
   const chessRef = useRef<Chess | null>(null);
   const startingPositionRef = useRef<StartingPosition | null>(null);
   const outcomeHandlerRef = useRef<(outcome: EngineOutcome) => void>(() => {});
+  // 移动端推演态：着法横向条自动滚到最新一步
+  const moveStripRef = useRef<HTMLOListElement | null>(null);
 
   const humanColor = winnerColor === "w" ? "b" : "w";
   const isThinkingTurn =
@@ -255,8 +259,7 @@ export default function Home() {
     } satisfies Record<Color, number>;
   }, [materialTotals]);
   const shownFiles = isFlipped ? [...files].reverse() : files;
-  const shownRanks = isFlipped ? [...ranks].reverse() : ranks;
-  const topTrayColor: Color = isFlipped ? "w" : "b";
+  const shownRanks = isFlipped ? [...ranks].reverse() : ranks;  const topTrayColor: Color = isFlipped ? "w" : "b";
   const bottomTrayColor: Color = isFlipped ? "b" : "w";
   const currentTurn = phase === "setup" ? turn : chessRef.current?.turn() ?? turn;
   const canUndo = moves.some((move) => move.color === humanColor);
@@ -328,6 +331,12 @@ export default function Home() {
     setMessage(statusMessage(locale));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
+
+  // 移动端着法横条：新着法落子后滚到最右侧
+  useEffect(() => {
+    const el = moveStripRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [moves]);
 
   const placePiece = (square: Square, piece: Piece) => {
     if (piece.type === "p" && (square[1] === "1" || square[1] === "8")) {
@@ -698,7 +707,7 @@ export default function Home() {
   };
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-phase={phase}>
       <header className="topbar">
         <a className="brand" href="#" aria-label={t("brand.homeAria")}>
           <span className="brand-mark"><PieceArt piece={{ color: "b", type: "n" }} className="brand-piece" /></span>
@@ -744,7 +753,73 @@ export default function Home() {
         </div>
       </section>
 
-      <section className={`workspace${coachOpen && coachDocked ? " with-coach" : ""}`}>
+      <section
+        className={`workspace${coachOpen && coachDocked ? " with-coach" : ""}${coachOpen && !coachDocked ? " coach-expanded" : ""}`}
+      >
+        {/* 移动端推演态：开局配置折叠成摘要条，点「重新配置」才能修改 */}
+        {phase !== "setup" && (
+          <div className="config-summary-bar">
+            <div className="summary-chips">
+              <span className="summary-chip acid">
+                {t("summary.wins", { side: t(sideKey(winnerColor)) })}
+              </span>
+              <span className="summary-chip">
+                {(startingPositionRef.current?.turn ?? turn) === "w"
+                  ? t("summary.whiteFirst")
+                  : t("summary.blackFirst")}
+              </span>
+              <span className="summary-chip">
+                {t("summary.time", { seconds: (moveTime / 1000).toFixed(1) })}
+              </span>
+              <span className="summary-chip">
+                {startingPositionRef.current?.isStandard === false
+                  ? t("summary.customLayout")
+                  : t("summary.standardLayout")}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="summary-reconfig"
+              aria-expanded={reconfigOpen}
+              aria-haspopup="menu"
+              onClick={() => setReconfigOpen((value) => !value)}
+            >
+              {t("summary.reconfig")}
+            </button>
+            {reconfigOpen && (
+              <>
+                <div
+                  className="summary-menu-backdrop"
+                  onClick={() => setReconfigOpen(false)}
+                  aria-hidden="true"
+                />
+                <div className="summary-menu" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setReconfigOpen(false);
+                      editAgain();
+                    }}
+                  >
+                    {t("action.resetSetup")}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setReconfigOpen(false);
+                      editFromCurrentPosition();
+                    }}
+                  >
+                    {t("action.resetFromCurrent")}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="board-column">
           <div className="turn-banner">
             <div>
@@ -807,22 +882,24 @@ export default function Home() {
             />
           )}
 
-          <ChessBoard
-            shownRanks={shownRanks}
-            shownFiles={shownFiles}
-            displayBoard={displayBoard}
-            board={board}
-            selectedSquare={selectedSquare}
-            displayLastMove={displayLastMove}
-            legalTargets={legalTargets}
-            phase={phase}
-            reviewPly={reviewPly}
-            onSquareClick={handleSquareClick}
-            onSelectSquare={setSelectedSquare}
-            onClearPiece={() => setSelectedPiece(null)}
-            onMoveSetupPiece={moveSetupPiece}
-            onPlacePiece={placePiece}
-          />
+          <div className="board-area">
+            <ChessBoard
+              shownRanks={shownRanks}
+              shownFiles={shownFiles}
+              displayBoard={displayBoard}
+              board={board}
+              selectedSquare={selectedSquare}
+              displayLastMove={displayLastMove}
+              legalTargets={legalTargets}
+              phase={phase}
+              reviewPly={reviewPly}
+              onSquareClick={handleSquareClick}
+              onSelectSquare={setSelectedSquare}
+              onClearPiece={() => setSelectedPiece(null)}
+              onMoveSetupPiece={moveSetupPiece}
+              onPlacePiece={placePiece}
+            />
+          </div>
 
           {phase === "setup" && (
             <PieceTray
@@ -1019,7 +1096,7 @@ export default function Home() {
                 {moves.length === 0 ? (
                   <p>{t("moves.empty")}</p>
                 ) : (
-                  <ol>
+                  <ol ref={moveStripRef}>
                     {moves.map((move, index) => <li key={`${move.lan}-${index}`}><span>{index + 1}</span>{moveLabel(move, t)}</li>)}
                   </ol>
                 )}
@@ -1038,6 +1115,7 @@ export default function Home() {
           snapshot={coachSnapshot}
           open={coachOpen}
           docked={coachDocked}
+          onToggleOpen={() => setCoachOpen((value) => !value)}
           onClose={() => setCoachOpen(false)}
         />
       </section>

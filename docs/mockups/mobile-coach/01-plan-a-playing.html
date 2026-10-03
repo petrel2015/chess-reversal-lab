@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="statusbar"><span>9:41</span><span class="sicons">▮▮▮ ⌖ ▭</span></div>
+
+  <header class="topbar">
+    <span class="brand"><span class="mark">♞</span><b>逆转棋局</b></span>
+    <span class="spacer"></span>
+    <span class="pill"><span class="dot"></span>思考中</span>
+    <span class="pill coach-on">AI 教练</span>
+  </header>
+
+  <!-- 推演开始后：开局配置折叠成一条摘要 -->
+  <div class="summary-bar">
+    <span class="cfg">
+      <span class="chip acid"><span class="g">♚</span>黑方胜</span>
+      <span class="chip">白先</span>
+      <span class="chip">AI 1.2s/步</span>
+      <span class="chip">标准布局</span>
+    </span>
+    <button class="reconfig">重新配置</button>
+  </div>
+
+  <div class="banner">
+    <span class="turn-dot b"></span>
+    <strong>轮到你（黑方）</strong>
+    <small>引擎走完 Bb5，等你模拟防守</small>
+    <span class="flip">⇅</span>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" data-pos="r.bqkbnr/pppp.ppp/..n...../.B....../....P.../.....N../PPPP.PPP/R..BQ..R" data-size="344" data-last-from="f1" data-last-to="b5"></div>
+    <div class="board-files"></div>
+  </div>
+
+  <div class="winbar"><span>白 55</span><span class="track"><span class="tw" style="width:55%"></span><span class="tb"></span></span><span>45 黑</span></div>
+
+  <div class="moves">
+    <span><span class="no">1.</span>e4 e5</span>
+    <span><span class="no">2.</span>Nf3 ♞c6</span>
+    <span class="cur"><span class="no">3.</span>Bb5</span>
+    <span style="color:#5d6058">…</span>
+  </div>
+
+  <div class="actions">
+    <button>↶ 悔棋</button>
+    <button disabled>↷ 重做</button>
+    <button>◀ 复盘</button>
+    <button disabled>复盘 ▶</button>
+  </div>
+
+  <!-- AI 教练：常驻贴底，仅保留最新一问一答 -->
+  <div class="coach">
+    <div class="coach-head">
+      <span class="avatar">♟</span>
+      <b>AI 教练</b>
+      <small>边下边问 · 历史已收起</small>
+      <span class="chev">⌃</span>
+    </div>
+    <div class="coach-qa">
+      <div class="bubble q">上一步 Bb5 想干什么？</div>
+      <div class="bubble a clamp3">西班牙开局（Ruy Lopez）。白象 b5 点名守护 e5 兵的 c6 马，之后多半 c3、d4 抢中心。你方评估 +0.3 仍均势，可考虑 a6 逼象表态。</div>
+    </div>
+    <div class="coach-input">
+      <span class="field">追问一句，比如「e5 要不要动？」</span>
+      <button class="send">➤</button>
+    </div>
+  </div>
+
+  <div class="homebar"></div>
+
+  <span class="note" style="right: 44px; top: 118px;">↑ 已折叠 · 点「重新配置」可改</span>
+  <span class="note" style="left: 12px; bottom: 188px;">教练常驻 ~1/4 屏 · 历史收起，只留最新问答</span>
+
+  <script src="board.js"></script>
+</body>
+</html>

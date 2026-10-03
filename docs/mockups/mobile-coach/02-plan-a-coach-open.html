@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="style.css" />
+<style>
+  /* 展开态：教练吃掉下半屏，棋盘缩为预览 */
+  .coach { flex: 1 1 0; min-height: 0; margin-bottom: 6px; }
+  .msgs { flex: 1 1 0; overflow: hidden; }
+  .board-wrap { flex: 0 0 auto; }
+</style>
+</head>
+<body>
+  <div class="statusbar"><span>9:41</span><span class="sicons">▮▮▮ ⌖ ▭</span></div>
+
+  <header class="topbar">
+    <span class="brand"><span class="mark">♞</span><b>逆转棋局</b></span>
+    <span class="spacer"></span>
+    <span class="pill"><span class="dot"></span>思考中</span>
+    <span class="pill coach-on">AI 教练</span>
+  </header>
+
+  <div class="summary-bar">
+    <span class="cfg">
+      <span class="chip acid"><span class="g">♚</span>黑方胜</span>
+      <span class="chip">白先</span>
+      <span class="chip">AI 1.2s/步</span>
+      <span class="chip">标准布局</span>
+    </span>
+    <button class="reconfig">重新配置</button>
+  </div>
+
+  <div class="banner">
+    <span class="turn-dot b"></span>
+    <strong>轮到你（黑方）</strong>
+    <small>教练展开时棋盘缩为预览，随时可收起</small>
+    <span class="flip">⇅</span>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" data-pos="r.bqkbnr/pppp.ppp/..n...../.B....../....P.../.....N../PPPP.PPP/R..BQ..R" data-size="230" data-last-from="f1" data-last-to="b5"></div>
+  </div>
+
+  <!-- 教练展开：完整历史 + 快捷提问 + 输入 -->
+  <div class="coach">
+    <div class="coach-head">
+      <span class="avatar">♟</span>
+      <b>AI 教练</b>
+      <small>历史记录 · 上下文随局面自动同步</small>
+      <span class="gearbtn">⚙</span>
+      <span class="chev">⌄</span>
+    </div>
+    <div class="msgs">
+      <div class="bubble a">
+        <span class="brief-tag">♟ 自动简评 · 已思考 2 秒</span><br/>
+        3.Bb5 走西班牙开局，双方开局无误，局面持平。
+      </div>
+      <div class="bubble q">上一步 Bb5 想干什么？</div>
+      <div class="bubble a">
+        <div class="think">▸ 已思考 3 秒</div>
+        这是西班牙开局。白象 b5 压制守护 e5 兵的 c6 马，是含金量很高的施压着法。你若走 a6 逼象，白方多半退 a4 或 c3-d4 抢中心；e5 兵暂时没危险，不用急着动。
+      </div>
+      <div class="bubble q">那现在推荐我走哪步？</div>
+      <div class="bubble a">
+        <div class="think"><span class="tdot"></span>思考中 · 3 秒</div>
+        建议 a6！理由：① 逼白象立刻表明态度…
+
+      </div>
+    </div>
+    <div class="chips-row">
+      <span class="chipbtn">解释上一步</span>
+      <span class="chipbtn">评估局面</span>
+      <span class="chipbtn acid">推荐走法</span>
+      <span class="chipbtn" style="margin-left:auto">清空对话</span>
+    </div>
+    <div class="coach-input">
+      <span class="field">问点什么…（随局面自动带上下文）</span>
+      <button class="send">➤</button>
+    </div>
+  </div>
+
+  <div class="homebar"></div>
+
+  <span class="note" style="right: 8px; top: 258px;">教练展开 ≈ 半屏 · 点 ⌄ 收起</span>
+
+  <script src="board.js"></script>
+</body>
+</html>

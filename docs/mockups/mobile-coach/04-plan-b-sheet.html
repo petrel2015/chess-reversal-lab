@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="style.css" />
+<style>
+  /* 方案B展开态：半屏浮层盖在棋盘上（棋盘顶对齐，露出上半部分） */
+  .sheet { height: 492px; }
+  .msgs { flex: 1 1 0; overflow: hidden; }
+  .board-wrap { justify-content: flex-start; padding-top: 0; }
+</style>
+</head>
+<body>
+  <div class="statusbar"><span>9:41</span><span class="sicons">▮▮▮ ⌖ ▭</span></div>
+
+  <header class="topbar">
+    <span class="brand"><span class="mark">♞</span><b>逆转棋局</b></span>
+    <span class="spacer"></span>
+    <span class="pill"><span class="dot"></span>思考中</span>
+    <span class="pill coach-on">AI 教练</span>
+  </header>
+
+  <div class="summary-bar">
+    <span class="cfg">
+      <span class="chip acid"><span class="g">♚</span>黑方胜</span>
+      <span class="chip">白先</span>
+      <span class="chip">AI 1.2s/步</span>
+      <span class="chip">标准布局</span>
+    </span>
+    <button class="reconfig">重新配置</button>
+  </div>
+
+  <div class="banner">
+    <span class="turn-dot b"></span>
+    <strong>轮到你（黑方）</strong>
+    <small>浮层打开时仍能看到棋盘上沿</small>
+    <span class="flip">⇅</span>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" data-pos="r.bqkbnr/pppp.ppp/..n...../.B....../....P.../.....N../PPPP.PPP/R..BQ..R" data-size="380" data-last-from="f1" data-last-to="b5"></div>
+    <div class="board-files"></div>
+  </div>
+
+  <div class="backdrop"></div>
+
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="coach-head">
+      <span class="avatar">♟</span>
+      <b>AI 教练</b>
+      <small>历史记录 · 上下文随局面自动同步</small>
+      <span class="gearbtn">⚙</span>
+      <span class="chev">⌄</span>
+    </div>
+    <div class="msgs">
+      <div class="bubble a">
+        <span class="brief-tag">♟ 自动简评 · 已思考 2 秒</span><br/>
+        3.Bb5 走西班牙开局，双方开局无误，局面持平。
+      </div>
+      <div class="bubble q">上一步 Bb5 想干什么？</div>
+      <div class="bubble a">
+        <div class="think">▸ 已思考 3 秒</div>
+        这是西班牙开局。白象 b5 压制守护 e5 兵的 c6 马，是含金量很高的施压着法。你若走 a6 逼象，白方多半退 a4 或 c3-d4 抢中心；e5 兵暂时没危险，不用急着动。
+      </div>
+      <div class="bubble q">那现在推荐我走哪步？</div>
+      <div class="bubble a">
+        <div class="think"><span class="tdot"></span>思考中 · 3 秒</div>
+        建议 a6！理由：① 逼白象立刻表明态度…
+      </div>
+    </div>
+    <div class="chips-row">
+      <span class="chipbtn">解释上一步</span>
+      <span class="chipbtn">评估局面</span>
+      <span class="chipbtn acid">推荐走法</span>
+      <span class="chipbtn" style="margin-left:auto">清空对话</span>
+    </div>
+    <div class="coach-input">
+      <span class="field">问点什么…</span>
+      <button class="send">➤</button>
+    </div>
+    <div class="homebar"></div>
+  </div>
+
+  <span class="note" style="right: 10px; top: 255px;">↑ 上拉展开 · 收起后对局布局不变</span>
+
+  <script src="board.js"></script>
+</body>
+</html>

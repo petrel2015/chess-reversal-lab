@@ -199,7 +199,8 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(page, /setTurn\(nextTurn\)/);
   assert.match(page, /setIsStandardSetup\(false\)/);
   assert.match(page, /t\("msg.setCurrentStart"\)/);
-  assert.equal(page.match(/t\("action.resetFromCurrent"\)/g)?.length, 2);
+  // 3 处入口：对局面板、棋盘操作区、移动端摘要条「重新配置」菜单
+  assert.equal(page.match(/t\("action.resetFromCurrent"\)/g)?.length, 3);
   assert.match(page, /startingPositionRef/);
   assert.match(useEngineSrc, /activeSearchFenRef/);
   assert.match(page, /t\("select.return"\)/);
@@ -209,10 +210,18 @@ test("ships the browser engine and removes starter assets", async () => {
   assert.match(css, /\.tray-return-target\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?inset:\s*0/);
   assert.match(page, /control-panel \$\{phase\}/);
   assert.match(page, /className="setup-config"/);
-  assert.match(css, /\.control-panel\.setup\s*\{[\s\S]*?order:\s*1/);
-  assert.match(css, /\.control-panel\.playing,[\s\S]*?\.control-panel\.over\s*\{[\s\S]*?order:\s*3/);
+  assert.match(css, /\.control-panel\.setup\s*\{[^}]*order:\s*2/);
+  assert.match(css, /\.control-panel\.playing,[\s\S]*?\.control-panel\.over\s*\{[^}]*order:\s*3/);
   assert.match(css, /\.control-dashboard\s*\{\s*display:\s*none/);
   assert.match(css, /\.board-dashboard\s*\{[\s\S]*?display:\s*block/);
+  // 移动端推演态：配置折叠为摘要条、教练常驻贴底条、视口锁定
+  assert.match(page, /data-phase=\{phase\}/);
+  assert.match(page, /className="config-summary-bar"/);
+  assert.match(page, /t\("summary.reconfig"\)/);
+  assert.match(page, /onToggleOpen=/);
+  assert.match(css, /\.config-summary-bar\s*\{\s*display:\s*none/);
+  assert.match(css, /\.coach-panel\[data-mode="strip"\]/);
+  assert.match(css, /@media \(max-width: 680px\) and \(min-height: 500px\)/);
   assert.match(chessBoardSrc, /application\/board-square/);
   assert.match(pieceTraySrc, /application\/board-square/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
