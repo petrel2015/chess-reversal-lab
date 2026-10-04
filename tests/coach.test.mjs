@@ -362,6 +362,63 @@ test("自动简评：每步触发（引擎与用户的棋都评）；面板关�
   });
 });
 
+test("自动简评：思考耗尽额度时自动加大额度重试，重试成功则渲染正文", async () => {
+  const dom = await createAppDom({
+    settings: configuredSettings({ autoBrief: true }),
+  });
+  const bodies = [];
+  let calls = 0;
+  dom.window.fetch = async (url, init) => {
+    calls += 1;
+    bodies.push(JSON.parse(init.body));
+    if (calls === 1) {
+      // 第一次：只有思考增量、正文为空（输出额度被思考耗尽）
+      return sseResponse(sseChunks("", { reasoning: "先分析一下局面…" }));
+    }
+    // 重试：返回正文
+    return sseResponse(sseChunks("黑方可以考虑 h5！"));
+  };
+  const { window, document } = dom;
+  await getEntry(document);
+  await new Promise((resolve) => setTimeout(resolve, 150)); // 首次对齐，不请求
+  window.__advanceCoachSnapshot?.();
+  await waitFor(() => assert.ok(bodies.length === 2, "应为原始请求 + 一次重试"));
+  assert.equal(bodies[0].max_tokens, 1024, "首次请求维持基础额度");
+  assert.equal(bodies[1].max_tokens, 4096, "重试应加大输出额度");
+  await openDrawer(document);
+  await waitFor(() => {
+    const briefs = document.querySelectorAll(".coach-msg.assistant.brief");
+    assert.ok(briefs.length === 1, "重试成功后应渲染简评正文");
+    assert.match(briefs[0].textContent ?? "", /h5/);
+    return true;
+  });
+});
+
+test("自动简评：重试后仍只有思考时显示明确错误，而非把思考当回答", async () => {
+  const dom = await createAppDom({
+    settings: configuredSettings({ autoBrief: true }),
+  });
+  dom.window.fetch = async () =>
+    sseResponse(sseChunks("", { reasoning: "始终只有思考过程…" }));
+  const { window, document } = dom;
+  await getEntry(document);
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  window.__advanceCoachSnapshot?.();
+  await openDrawer(document);
+  await waitFor(() => {
+    const error = document.querySelector(".coach-error");
+    assert.ok(error, "应显示思考耗尽额度的错误提示");
+    assert.match(error.textContent ?? "", /思考/);
+    return true;
+  });
+  // 思考内容绝不能被渲染成回答气泡
+  const answers = [...document.querySelectorAll(".coach-msg.assistant")];
+  assert.ok(
+    !answers.some((el) => (el.textContent ?? "").includes("始终只有思考过程")),
+    "思考过程不得出现在回答气泡里",
+  );
+});
+
 test("请求失败：401 映射为友好错误横幅", async () => {
   const dom = await createAppDom({ settings: configuredSettings() });
   dom.window.fetch = async () => ({
@@ -643,10 +700,11 @@ test("流式兜底：服务商忽略 stream 返回 JSON 时仍能完成回复", 
   assert.equal(assistantMessages(document)[0].textContent, ASSISTANT_REPLY);
 });
 
-test("仅返回思考无正文：思考内容作为正文展示（GLM 推理模型兼容）", async () => {
+test("仅返回思考无正文：自动加大额度重试，仍为空则报错且不把思考当回答", async () => {
   const dom = await createAppDom({ settings: configuredSettings() });
+  const bodies = [];
   dom.window.fetch = async (url, init) => {
-    dom.fetchCalls.push({ url: String(url), init });
+    bodies.push(JSON.parse(init.body));
     return sseResponse(
       sseChunks("", { reasoning: "引擎选择 Nf3 是为了控制中心并开发子力。" }),
     );
@@ -656,11 +714,23 @@ test("仅返回思考无正文：思考内容作为正文展示（GLM 推理模�
   const textarea = document.querySelector(".coach-input-row textarea");
   setControlValue(window, textarea, "为什么走 Nf3？");
   submitForm(window, document.querySelector(".coach-input-row"));
+  // 思考耗尽额度 → 先自动重试一次（加大输出额度）
+  await waitFor(() => assert.ok(bodies.length === 2, "应自动重试一次"));
+  assert.equal(bodies[0].max_tokens, undefined, "手动提问首次请求不加额度");
+  assert.equal(bodies[1].max_tokens, 8192, "重试应显式加大输出额度");
+  // 重试后仍只有思考 → 显示错误提示，而不是把思考渲染成回答
   await waitFor(() => {
-    const message = assistantMessages(document)[0];
-    assert.ok(message && /控制中心/.test(message.textContent), "思考应作为正文展示");
+    const error = document.querySelector(".coach-error");
+    assert.ok(error, "应显示思考耗尽额度的错误提示");
+    assert.match(error.textContent ?? "", /思考/);
     return true;
   });
+  assert.ok(
+    !assistantMessages(document).some((el) =>
+      (el.textContent ?? "").includes("控制中心"),
+    ),
+    "思考过程不得出现在回答气泡里",
+  );
 });
 
 // ---------- 合同断言（防回退） ----------

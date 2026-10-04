@@ -243,11 +243,11 @@ export function AiCoach({
         setMessages((current) => [...current, { role: "user", content: question }]);
       }
       try {
-        const reply = await chatCompletionStream(settings, payload, {
+      const attempt = (maxTokens: number | undefined) =>
+        chatCompletionStream(settings, payload, {
           signal: controller.signal,
-          // 推理模型的思考过程同样消耗 max_tokens：额度太小（如此前的 220）时
-          // 思考吃光额度、正文为空，英文思考会被当作回复展示，故放宽到 1024
-          maxTokens: mode === "brief" ? 1024 : undefined,
+          // 推理模型思考也消耗 max_tokens：额度太小时思考吃光额度、正文为空
+          maxTokens,
           onReasoning: (delta) =>
             setStream((current) =>
               current ? { ...current, reasoning: current.reasoning + delta } : current,
@@ -263,16 +263,29 @@ export function AiCoach({
               };
             }),
         });
-        // 仅返回思考没有正文时（部分推理模型行为），把思考内容当正文展示
-        const content = reply.content || reply.reasoning;
-        if (!content) {
-          throw new CoachError("coach.error.badResponse");
-        }
-        const reasoning = reply.content ? reply.reasoning : "";
-        const thinkMs =
-          reasoning && reasoningEndedAt
-            ? reasoningEndedAt - startedAt
-            : undefined;
+      // 思考耗尽输出额度（正文为空）时加大额度自动重试一次；
+      // 仍无正文才报错——绝不把思考过程当回答展示。
+      let reply = await attempt(mode === "brief" ? 1024 : undefined);
+      if (!reply.content && reply.reasoning) {
+        setStream({
+          reasoning: "",
+          content: "",
+          startedAt: Date.now(),
+          reasoningEndedAt: null,
+        });
+        reply = await attempt(mode === "brief" ? 4096 : 8192);
+      }
+      const content = reply.content;
+      if (!content) {
+        throw reply.reasoning
+          ? new CoachError("coach.error.thinkingOnly")
+          : new CoachError("coach.error.badResponse");
+      }
+      const reasoning = reply.reasoning;
+      const thinkMs =
+        reasoning && reasoningEndedAt
+          ? reasoningEndedAt - startedAt
+          : undefined;
         setMessages((current) => [
           ...current,
           {

@@ -28,6 +28,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/); versions are
 
 ### Fixed
 
+- The AI coach no longer shows its thinking process as the answer: when a reasoning model spends the whole output budget on reasoning and returns an empty body, the request is retried once with a larger budget; if the retry is still empty, a clear error is shown instead of rendering the raw thinking stream as the brief/answer.
 - AI coach: the "AI is not configured yet" empty-state card kept showing after saving settings even though the configuration had actually applied; it now swaps to the conversation hint once configured.
 - A failing settings write to the browser's storage (e.g. private mode) is no longer silent — an explicit warning explains the settings will be lost on reload.
 

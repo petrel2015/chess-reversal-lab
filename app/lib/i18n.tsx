@@ -254,6 +254,8 @@ const zh: Record<string, string> = {
   "coach.error.responseApi":
     "该端点是 OpenAI Response 协议，不是 Chat Completions：请改填兼容地址（智谱用 https://open.bigmodel.cn/api/coding/paas/v4）。",
   "coach.error.badResponse": "服务商返回了无法解析的内容。",
+  "coach.error.thinkingOnly":
+    "模型把输出额度全部花在了思考上，没有返回正文；自动加大额度重试后仍为空。请再试一次，或在设置中换一个更快的模型。",
   // 移动端：推演开始后折叠的配置摘要条
   "summary.wins": "{side}胜",
   "summary.whiteFirst": "白先",
@@ -536,6 +538,8 @@ const en: Record<string, string> = {
   "coach.error.responseApi":
     "This endpoint speaks the OpenAI Response protocol, not Chat Completions — use a compatible base URL (for Zhipu: https://open.bigmodel.cn/api/coding/paas/v4).",
   "coach.error.badResponse": "The provider returned an unreadable response.",
+  "coach.error.thinkingOnly":
+    "The model spent its entire output budget on thinking and returned no answer — even after an automatic retry with a larger budget. Please try again, or switch to a faster model in settings.",
   // Mobile: collapsed config summary bar shown once the simulation starts
   "summary.wins": "{side} wins",
   "summary.whiteFirst": "White first",
